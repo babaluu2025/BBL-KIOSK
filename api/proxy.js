@@ -1,61 +1,53 @@
-// api/proxy.js
+// api/proxy.js – menja sve relativne linkove da idu kroz proxy
 export default async function handler(req, res) {
-  const url = req.query.url;
+  let url = req.query.url;
   if (!url) return res.status(400).json({ error: 'Missing url' });
 
-  try {
-    const response = await fetch(url, {
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
+  // Dekodiraj ako je već enkodiran
+  try { url = decodeURIComponent(url); } catch(e) {}
 
+  try {
+    const response = await fetch(url);
     const contentType = response.headers.get('content-type') || 'text/html';
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    // Ukloni blokirajuća zaglavlja
-    const responseHeaders = new Headers(response.headers);
-    responseHeaders.delete('x-frame-options');
-    responseHeaders.delete('content-security-policy');
-    responseHeaders.delete('x-content-type-options');
-
-    // Prosledi sve ostale heder-e osim problematičnih
-    for (const [key, value] of responseHeaders) {
-      if (!['transfer-encoding', 'content-encoding'].includes(key.toLowerCase())) {
-        res.setHeader(key, value);
-      }
-    }
-
     res.status(response.status);
 
-    // Ako je HTML, prepravi putanje ka resursima
     if (contentType.includes('text/html')) {
       let html = await response.text();
-      const baseUrl = new URL(url);
-      const baseOrigin = baseUrl.origin;
 
-      // Zameni relativne putanje apsolutnim
-      html = html.replace(/(href|src|action)="\//g, `$1="${baseOrigin}/`);
-      html = html.replace(/(href|src|action)="\.\//g, `$1="${baseOrigin}/`);
-      html = html.replace(/url\(\//g, `url(${baseOrigin}/`);
-
-      // Ukloni X-Frame-Options meta tagove
+      // 1. Skini meta tagove koji blokiraju iframe
       html = html.replace(/<meta[^>]*http-equiv=["']X-Frame-Options[^>]*>/gi, '');
       html = html.replace(/<meta[^>]*content=["']X-Frame-Options[^>]*>/gi, '');
 
-      // Dodaj base tag da bi relativni linkovi radili
-      html = html.replace('<head>', `<head><base href="${baseUrl.origin}/">`);
+      // 2. Prepravi SVE linkove da idu kroz nas proxy
+      //    href="..." i src="..."
+      const domain = new URL(url).origin; // npr. https://www.babaluu.me
+
+      // a) Apsolutni linkovi koji počinju sa http(s)
+      html = html.replace(
+        /(href|src)=["'](https?:\/\/[^"']+)["']/gi,
+        (match, attr, link) => `${attr}="/api/proxy?url=${encodeURIComponent(link)}"`
+      );
+
+      // b) Relativni linkovi koji počinju sa /
+      html = html.replace(
+        /(href|src)=["'](\/[^"']+)["']/gi,
+        (match, attr, link) => `${attr}="/api/proxy?url=${encodeURIComponent(domain + link)}"`
+      );
+
+      // c) Relativni linkovi koji ne počinju sa / (npr. "pice.php")
+      html = html.replace(
+        /(href|src)=["'](?!https?:\/\/|\/)([^"']+)["']/gi,
+        (match, attr, link) => `${attr}="/api/proxy?url=${encodeURIComponent(domain + '/' + link)}"`
+      );
 
       res.send(html);
     } else {
-      // Za sve ostale fajlove (slike, CSS, JS) – samo prosledi
+      // Za slike, CSS, JS… samo prosledi
       const buffer = await response.arrayBuffer();
       res.send(Buffer.from(buffer));
     }
-  } catch (error) {
-    console.error('Proxy error:', error);
+  } catch (e) {
     res.status(500).json({ error: 'Proxy error' });
   }
 }
