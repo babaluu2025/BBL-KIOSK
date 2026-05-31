@@ -121,7 +121,7 @@
     
     <div class="admin-section">
         <h3>Brzina slajdova (sekunde)</h3>
-        <input type="number" class="admin-input" id="slideSpeed" value="4" min="1" max="10">
+        <input type="number" class="admin-input" id="slideSpeed" value="4" min="1" max="10" onchange="settings.slide_speed=parseInt(this.value)||4; applySettings();">
     </div>
     
     <div class="admin-section">
@@ -132,12 +132,12 @@
     
     <div class="admin-section">
         <h3>Link menija</h3>
-        <input type="text" class="admin-input" id="menuLink">
+        <input type="text" class="admin-input" id="menuLink" onchange="settings.menu_link=this.value.trim(); applySettings();">
     </div>
     
     <div class="admin-section">
         <h3>PIN kod</h3>
-        <input type="text" class="admin-input" id="pinCode" maxlength="4">
+        <input type="text" class="admin-input" id="pinCode" maxlength="4" onchange="settings.pin_code=this.value.trim()||'0987';">
     </div>
     
     <button class="admin-btn admin-btn-save" onclick="saveSettings()" style="width:100%;padding:15px;font-size:18px;">💾 Sačuvaj sve</button>
@@ -169,30 +169,36 @@ const DEFAULT_SETTINGS = {
     pin_code: '0987'
 };
 
-let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+// Prvo učitaj iz localStorage, pa onda iz cloud-a
+let settings = JSON.parse(localStorage.getItem('kiosk_settings')) || JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 let currentSlide = 0;
 let slideInterval = null;
 let logoClicks = 0;
 
 async function loadFromCloud() {
     try {
-        const { data } = await db.from('kiosk_settings').select('*').eq('id', 1).single();
+        console.log('🔄 Pokušavam da učitam iz Supabase...');
+        const { data, error } = await db.from('kiosk_settings').select('*').eq('id', 1).single();
         if (data) {
-            settings = {
-                slideshow_images: data.slideshow_images || DEFAULT_SETTINGS.slideshow_images,
-                slide_speed: data.slide_speed || DEFAULT_SETTINGS.slide_speed,
-                buttons: (data.buttons && data.buttons.length > 0) ? data.buttons : DEFAULT_BUTTONS,
-                menu_link: data.menu_link || DEFAULT_SETTINGS.menu_link,
-                pin_code: data.pin_code || DEFAULT_SETTINGS.pin_code
-            };
+            console.log('✅ Podaci iz Supabase:', data);
+            settings = data;
+            // Ažuriraj i localStorage
+            localStorage.setItem('kiosk_settings', JSON.stringify(settings));
+            applySettings();
+        } else {
+            console.log('⚠️ Nema podataka u Supabase. Koristim lokalne.');
+            // Pokušaj da kreiraš inicijalne podatke u bazi
+            await db.from('kiosk_settings').upsert({...DEFAULT_SETTINGS, id:1});
         }
-    } catch(e) {}
-    applySettings();
+    } catch(e) {
+        console.warn('⚠️ Greška pri učitavanju iz Supabase:', e);
+    }
 }
 
 async function saveToCloud() {
     try {
-        await db.from('kiosk_settings').upsert({
+        console.log('💾 Čuvam u Supabase...');
+        const { error } = await db.from('kiosk_settings').upsert({
             id: 1,
             slideshow_images: settings.slideshow_images,
             slide_speed: settings.slide_speed,
@@ -200,14 +206,25 @@ async function saveToCloud() {
             menu_link: settings.menu_link,
             pin_code: settings.pin_code
         });
-    } catch(e) {}
+        if (error) {
+            console.error('❌ Greška pri čuvanju u Supabase:', error);
+        } else {
+            console.log('✅ Uspešno sačuvano u Supabase');
+            localStorage.setItem('kiosk_settings', JSON.stringify(settings));
+        }
+    } catch(e) {
+        console.error('❌ Greška pri čuvanju u Supabase:', e);
+    }
 }
 
 function applySettings() {
+    console.log('🎨 Primenjujem podešavanja...');
+    
+    // Slideshow
     const slideshow = document.getElementById('slideshow');
     if (slideshow) {
         slideshow.innerHTML = '';
-        settings.slideshow_images.forEach(url => {
+        (settings.slideshow_images || []).forEach(url => {
             const div = document.createElement('div');
             div.className = 'slide';
             div.style.backgroundImage = `url(${url})`;
@@ -222,6 +239,7 @@ function applySettings() {
         }
     }
 
+    // Kockice
     const sideButtons = document.getElementById('sideButtons');
     if (sideButtons) {
         sideButtons.innerHTML = '';
@@ -233,7 +251,12 @@ function applySettings() {
             sideButtons.appendChild(button);
         });
     }
+    
+    // Admin panel
     renderAdminPanel();
+    
+    // Sačuvaj lokalno
+    localStorage.setItem('kiosk_settings', JSON.stringify(settings));
 }
 
 function nextSlide() {
@@ -299,6 +322,7 @@ async function saveSettings() {
     settings.slide_speed = parseInt(document.getElementById('slideSpeed').value) || 4;
     settings.menu_link = document.getElementById('menuLink').value.trim();
     settings.pin_code = document.getElementById('pinCode').value.trim() || '0987';
+    
     await saveToCloud();
     applySettings();
     alert('✅ Sačuvano!');
@@ -334,8 +358,15 @@ function closeFrame() {
 }
 
 async function init() {
+    console.log('⚡ Inicijalizacija...');
+    
+    // Prvo primeni trenutna podešavanja (iz localStorage ili default)
     applySettings();
+    
+    // Pokušaj da učitamo iz cloud-a i sinhronizujemo
     await loadFromCloud();
+    
+    // Osveži admin panel
     renderAdminPanel();
 
     document.getElementById('logo').addEventListener('click', () => {
@@ -354,6 +385,8 @@ async function init() {
     document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
     document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,iframe')) e.preventDefault(); },{passive:false});
     document.documentElement.requestFullscreen?.().catch(()=>{});
+    
+    console.log('✅ Inicijalizacija završena');
 }
 
 async function fetchWeather() {
