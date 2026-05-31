@@ -109,17 +109,27 @@
 </div>
 
 <script>
+console.log('🚀 Aplikacija pokrenuta');
+
 // ==================== SUPABASE ====================
 const SUPABASE_URL = 'https://itoyvqqssqmeyxawvulq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nbUWlCIXbB48NoBRhH4ucg_PfCAmau1';
 let supabase = null;
 try {
     supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('✅ Supabase inicijalizovan');
 } catch(e) {
-    console.warn('Supabase init failed', e);
+    console.warn('⚠️ Supabase nije inicijalizovan', e);
 }
 
 // ==================== PODRAZUMEVANI PODACI ====================
+const DEFAULT_BUTTONS = [
+    {id:'1', icon:'📸', label:'Instagram', link:'https://www.instagram.com/babaluu_budva/', type:'link', order:1},
+    {id:'2', icon:'ℹ️', label:'O nama', link:'about', type:'modal', order:2},
+    {id:'3', icon:'🛵', label:'Dostava', link:'delivery', type:'modal', order:3},
+    {id:'4', icon:'🏛', label:'Istorija Budve', link:'history', type:'modal', order:4}
+];
+
 const DEFAULT_SETTINGS = {
     slideshow_images: [
         'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1920',
@@ -127,42 +137,43 @@ const DEFAULT_SETTINGS = {
         'https://images.unsplash.com/photo-1544025162-d76694265947?w=1920'
     ],
     slide_speed: 4,
-    buttons: [
-        {id:'1', icon:'📸', label:'Instagram', link:'https://www.instagram.com/babaluu_budva/', type:'link', order:1},
-        {id:'2', icon:'ℹ️', label:'O nama', link:'about', type:'modal', order:2},
-        {id:'3', icon:'🛵', label:'Dostava', link:'delivery', type:'modal', order:3},
-        {id:'4', icon:'🏛', label:'Istorija Budve', link:'history', type:'modal', order:4}
-    ],
+    buttons: DEFAULT_BUTTONS,
     menu_link: 'https://www.babaluu.me/me/jelovnik',
     pin_code: '0987'
 };
 
-let settings = {...DEFAULT_SETTINGS};
+let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); // Deep copy
 let currentSlide = 0;
 let slideInterval = null;
 
 // ==================== CLOUD FUNKCIJE ====================
 async function loadFromCloud() {
-    if (!supabase) return;
+    if (!supabase) {
+        console.log('ℹ️ Nema Supabase, koristim lokalne podatke');
+        return;
+    }
     try {
+        console.log('🔄 Učitavam iz oblaka...');
         const { data, error } = await supabase
             .from('kiosk_settings')
             .select('*')
             .eq('id', 1)
             .single();
         if (data) {
-            settings = data;
-            if (!settings.slideshow_images) settings.slideshow_images = DEFAULT_SETTINGS.slideshow_images;
-            if (!settings.buttons) settings.buttons = DEFAULT_SETTINGS.buttons;
-            if (!settings.menu_link) settings.menu_link = DEFAULT_SETTINGS.menu_link;
-            if (!settings.pin_code) settings.pin_code = DEFAULT_SETTINGS.pin_code;
-            if (!settings.slide_speed) settings.slide_speed = DEFAULT_SETTINGS.slide_speed;
-            console.log('Settings loaded from cloud');
+            console.log('✅ Podaci iz oblaka:', data);
+            // Merge sa default vrednostima za svaki slučaj
+            settings = {
+                slideshow_images: data.slideshow_images || DEFAULT_SETTINGS.slideshow_images,
+                slide_speed: data.slide_speed || DEFAULT_SETTINGS.slide_speed,
+                buttons: (data.buttons && data.buttons.length > 0) ? data.buttons : DEFAULT_BUTTONS,
+                menu_link: data.menu_link || DEFAULT_SETTINGS.menu_link,
+                pin_code: data.pin_code || DEFAULT_SETTINGS.pin_code
+            };
         } else if (error) {
-            console.log('No cloud data, using defaults');
+            console.log('ℹ️ Nema podataka u oblaku, ostajem na lokalnim');
         }
     } catch(e) {
-        console.warn('Cloud load failed, using defaults', e);
+        console.warn('⚠️ Greška pri učitavanju iz oblaka:', e);
     }
     applySettings();
 }
@@ -180,36 +191,53 @@ async function saveToCloud() {
                 menu_link: settings.menu_link,
                 pin_code: settings.pin_code
             });
-        console.log('Settings saved to cloud');
+        console.log('💾 Sačuvano u oblaku');
     } catch(e) {
-        console.warn('Cloud save failed', e);
+        console.warn('⚠️ Greška pri čuvanju u oblaku:', e);
     }
 }
 
 // ==================== PRIMENI PODEŠAVANJA ====================
 function applySettings() {
+    console.log('🎨 applySettings pozvano');
     // Slideshow
     const slideshow = document.getElementById('slideshow');
-    slideshow.innerHTML = '';
-    settings.slideshow_images.forEach(url => {
-        const div = document.createElement('div');
-        div.className = 'slide';
-        div.style.backgroundImage = `url(${url})`;
-        slideshow.appendChild(div);
-    });
-    
-    if (settings.slideshow_images.length > 0) {
-        const slides = document.querySelectorAll('.slide');
-        slides[0]?.classList.add('active');
-        currentSlide = 0;
-        if (slideInterval) clearInterval(slideInterval);
-        slideInterval = setInterval(nextSlide, settings.slide_speed * 1000);
+    if (slideshow) {
+        slideshow.innerHTML = '';
+        if (settings.slideshow_images && settings.slideshow_images.length > 0) {
+            settings.slideshow_images.forEach(url => {
+                const div = document.createElement('div');
+                div.className = 'slide';
+                div.style.backgroundImage = `url(${url})`;
+                slideshow.appendChild(div);
+            });
+            const slides = document.querySelectorAll('.slide');
+            if (slides.length > 0) {
+                slides[0].classList.add('active');
+                currentSlide = 0;
+                if (slideInterval) clearInterval(slideInterval);
+                slideInterval = setInterval(nextSlide, (settings.slide_speed || 4) * 1000);
+            }
+        }
     }
-    
+
     // Kockice
     const sideButtons = document.getElementById('sideButtons');
+    if (!sideButtons) {
+        console.error('❌ #sideButtons nije pronađen!');
+        return;
+    }
     sideButtons.innerHTML = '';
-    settings.buttons.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(btn => {
+    
+    const buttons = settings.buttons || DEFAULT_BUTTONS;
+    console.log('🔘 Prikazujem kockice:', buttons);
+    
+    if (!Array.isArray(buttons)) {
+        console.error('❌ buttons nije niz!', buttons);
+        return;
+    }
+    
+    buttons.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(btn => {
         const button = document.createElement('button');
         button.className = 'side-btn';
         button.textContent = `${btn.icon || ''} ${btn.label || ''}`;
@@ -222,8 +250,9 @@ function applySettings() {
         };
         sideButtons.appendChild(button);
     });
+    console.log('✅ Kockice dodate, broj:', sideButtons.children.length);
     
-    // Admin panel update
+    // Admin panel (osveži ako je otvoren)
     renderAdminPanel();
 }
 
@@ -238,41 +267,49 @@ function nextSlide() {
 // ==================== ADMIN PANEL ====================
 function renderAdminPanel() {
     const slidesList = document.getElementById('slidesList');
-    if (!slidesList) return;
-    slidesList.innerHTML = '';
-    settings.slideshow_images.forEach((url, index) => {
-        const div = document.createElement('div');
-        div.className = 'slide-item';
-        div.innerHTML = `
-            <img src="${url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2240%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%23333%22/></svg>'">
-            <span style="flex:1;font-size:12px;word-break:break-all;">${url.substring(0, 50)}...</span>
-            <button class="admin-btn admin-btn-delete" onclick="removeSlide(${index})">✕</button>
-        `;
-        slidesList.appendChild(div);
-    });
+    if (slidesList) {
+        slidesList.innerHTML = '';
+        (settings.slideshow_images || []).forEach((url, index) => {
+            const div = document.createElement('div');
+            div.className = 'slide-item';
+            div.innerHTML = `
+                <img src="${url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2240%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%23333%22/></svg>'">
+                <span style="flex:1;font-size:12px;word-break:break-all;">${url.substring(0, 50)}...</span>
+                <button class="admin-btn admin-btn-delete" onclick="removeSlide(${index})">✕</button>
+            `;
+            slidesList.appendChild(div);
+        });
+    }
     
-    document.getElementById('slideSpeed').value = settings.slide_speed;
-    document.getElementById('menuLink').value = settings.menu_link;
-    document.getElementById('pinCode').value = settings.pin_code;
+    const speedInput = document.getElementById('slideSpeed');
+    if (speedInput) speedInput.value = settings.slide_speed || 4;
+    
+    const menuInput = document.getElementById('menuLink');
+    if (menuInput) menuInput.value = settings.menu_link || '';
+    
+    const pinInput = document.getElementById('pinCode');
+    if (pinInput) pinInput.value = settings.pin_code || '';
     
     const buttonsList = document.getElementById('buttonsList');
-    if (!buttonsList) return;
-    buttonsList.innerHTML = '';
-    settings.buttons.forEach((btn, index) => {
-        const div = document.createElement('div');
-        div.className = 'slide-item';
-        div.innerHTML = `
-            <span>${btn.icon || ''}</span>
-            <span style="flex:1;">${btn.label || ''}</span>
-            <button class="admin-btn admin-btn-delete" onclick="removeButton(${index})">✕</button>
-        `;
-        buttonsList.appendChild(div);
-    });
+    if (buttonsList) {
+        buttonsList.innerHTML = '';
+        (settings.buttons || []).forEach((btn, index) => {
+            const div = document.createElement('div');
+            div.className = 'slide-item';
+            div.innerHTML = `
+                <span>${btn.icon || ''}</span>
+                <span style="flex:1;">${btn.label || ''}</span>
+                <button class="admin-btn admin-btn-delete" onclick="removeButton(${index})">✕</button>
+            `;
+            buttonsList.appendChild(div);
+        });
+    }
 }
 
 function addSlide() {
     const url = document.getElementById('newSlideUrl').value.trim();
     if (url) {
+        settings.slideshow_images = settings.slideshow_images || [];
         settings.slideshow_images.push(url);
         document.getElementById('newSlideUrl').value = '';
         applySettings();
@@ -291,6 +328,7 @@ function addButton() {
     const link = prompt('Link (URL ili "about", "delivery", "history"):', 'https://');
     const type = link.startsWith('http') ? 'link' : 'modal';
     
+    settings.buttons = settings.buttons || [];
     settings.buttons.push({
         id: Date.now().toString(36),
         icon: icon || '📎',
@@ -319,24 +357,27 @@ async function saveSettings() {
 
 // ==================== MENI ====================
 function openMenu() {
-    window.open(settings.menu_link, '_blank');
+    window.open(settings.menu_link || DEFAULT_SETTINGS.menu_link, '_blank');
 }
 
 // ==================== INICIJALIZACIJA ====================
 async function init() {
-    // Prvo primeni lokalne podatke da nešto radi
+    console.log('⚡ Inicijalizacija...');
+    
+    // PRVO PRIKAŽI PODRAZUMEVANE KOCKICE (bez obzira na sve)
     applySettings();
     
-    // Pokušaj učitavanje iz oblaka
+    // Zatim pokušaj cloud
     await loadFromCloud();
     
-    // Osveži admin panel nakon što su podaci stigli
+    // Osveži admin panel
     renderAdminPanel();
     
     // Logo klik – otvori admin panel (5 klikova)
     let logoClicks = 0;
     document.getElementById('logo').addEventListener('click', () => {
         logoClicks++;
+        console.log(`Logo klik ${logoClicks}/5`);
         if (logoClicks >= 5) {
             logoClicks = 0;
             toggleAdmin();
@@ -347,7 +388,8 @@ async function init() {
     // Sat
     setInterval(() => {
         const now = new Date();
-        document.getElementById('clock').textContent = now.toLocaleTimeString('sr', {hour:'2-digit', minute:'2-digit'});
+        const clockEl = document.getElementById('clock');
+        if (clockEl) clockEl.textContent = now.toLocaleTimeString('sr', {hour:'2-digit', minute:'2-digit'});
     }, 1000);
     
     // Vreme
@@ -363,8 +405,10 @@ async function init() {
         if (!e.target.closest('input, .admin-panel')) e.preventDefault();
     }, {passive: false});
     
-    // Fullscreen pokušaj (neće raditi u iframe-u, ali pokušavamo)
+    // Fullscreen pokušaj
     document.documentElement.requestFullscreen?.().catch(() => {});
+    
+    console.log('✅ Inicijalizacija završena');
 }
 
 async function fetchWeather() {
@@ -372,7 +416,8 @@ async function fetchWeather() {
         const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=Budva,ME&units=metric&appid=bd5e378503939ddaee76f1e1e4f8c4b2&lang=sr');
         const data = await res.json();
         if (data.main) {
-            document.getElementById('weather').innerHTML = `🌤 ${Math.round(data.main.temp)}°C`;
+            const weatherEl = document.getElementById('weather');
+            if (weatherEl) weatherEl.innerHTML = `🌤 ${Math.round(data.main.temp)}°C`;
         }
     } catch(e) {}
 }
