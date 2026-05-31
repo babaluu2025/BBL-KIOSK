@@ -43,9 +43,9 @@
         .fullscreen-iframe { position:fixed; top:0; left:0; width:100%; height:100%; z-index:300; display:none; }
         .fullscreen-iframe.active { display:block; }
         .fullscreen-iframe iframe { width:100%; height:100%; border:none; }
-        .modal-close { position:absolute; top:20px; right:20px; width:50px; height:50px; border-radius:50%; background:#e94560; color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:301; border:none; }
+        .back-arrow { position:absolute; top:20px; left:20px; width:60px; height:60px; border-radius:50%; background:rgba(233,69,96,0.9); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; cursor:pointer; z-index:301; border:none; }
 
-        .admin-panel { position:fixed; top:0; right:0; width:450px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
+        .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
         .admin-toggle { position:absolute; left:-50px; top:20px; width:50px; height:50px; background:#e94560; border-radius:10px 0 0 10px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:24px; }
         .admin-section { margin-bottom:20px; }
@@ -83,7 +83,7 @@
 
     <div class="side-buttons" id="sideButtons"></div>
 
-    <button class="menu-btn" id="menuBtn" onclick="openLink('meni')">🍽 Pritisni za meni</button>
+    <button class="menu-btn" id="menuBtn" onclick="openMenu()">🍽 Pritisni za meni</button>
 </div>
 
 <div class="pin-dialog" id="pinDialog">
@@ -94,7 +94,7 @@
 </div>
 
 <div class="fullscreen-iframe" id="fullFrame">
-    <button class="modal-close" onclick="closeFrame()">✕</button>
+    <button class="back-arrow" onclick="closeFrame()">←</button>
     <iframe id="fullIframe" src="about:blank"></iframe>
 </div>
 
@@ -180,7 +180,6 @@ async function loadFromCloud() {
         }
     } catch(e) { console.warn('Cloud load error', e); }
     applySettings();
-    renderAdminPanel();
 }
 
 async function saveToCloud() {
@@ -271,11 +270,9 @@ function renderAdminPanel() {
                 <input type="text" class="btn-link" value="${btn.link||''}" placeholder="URL" style="flex:3;">
                 <button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>
             `;
-            // Čuvamo indeks u dataset-u
             row.querySelector('.btn-icon').dataset.index = i;
             row.querySelector('.btn-label').dataset.index = i;
             row.querySelector('.btn-link').dataset.index = i;
-            // On change – odmah ažuriramo settings objekat (ali ne čuvamo u oblaku do "Sačuvaj sve")
             const updateBtn = () => {
                 const idx = parseInt(row.querySelector('.btn-icon').dataset.index);
                 settings.buttons[idx] = {
@@ -295,12 +292,11 @@ function renderAdminPanel() {
 
 function addSlide() {
     const url = document.getElementById('newSlideUrl').value.trim();
-    if (url) { settings.slideshow_images.push(url); document.getElementById('newSlideUrl').value=''; applySettings(); renderAdminPanel(); }
+    if (url) { settings.slideshow_images.push(url); document.getElementById('newSlideUrl').value=''; applySettings(); }
 }
-function removeSlide(i) { settings.slideshow_images.splice(i,1); applySettings(); renderAdminPanel(); }
+function removeSlide(i) { settings.slideshow_images.splice(i,1); applySettings(); }
 
 function addButton() {
-    // Dodaj praznu kockicu
     settings.buttons.push({
         id: Date.now().toString(36),
         icon: '📎',
@@ -310,22 +306,18 @@ function addButton() {
         order: settings.buttons.length + 1
     });
     applySettings();
-    renderAdminPanel();
 }
-function removeButton(i) { settings.buttons.splice(i,1); applySettings(); renderAdminPanel(); }
+function removeButton(i) { settings.buttons.splice(i,1); applySettings(); }
 
 async function saveSettings() {
-    // Prvo pokupimo vrednosti iz input polja (iako se ažuriraju live, za svaki slučaj)
-    // (settings objekat je već ažuriran preko input eventa)
     settings.slide_speed = parseInt(document.getElementById('slideSpeed').value) || 4;
     settings.menu_link = document.getElementById('menuLink').value.trim();
     settings.pin_code = document.getElementById('pinCode').value.trim() || '0987';
     
-    // Pozovi cloud save
     const ok = await saveToCloud();
     if (ok) {
         alert('✅ Podešavanja uspešno sačuvana!');
-        applySettings(); // osveži kiosk prikaz
+        applySettings(); // OVO OSVEŽAVA PRIKAZ ODMAH
     } else {
         alert('❌ Greška pri čuvanju. Proveri konzolu.');
     }
@@ -339,19 +331,29 @@ function checkPin() {
 }
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
+// ==================== OTVARANJE LINKA ====================
 function openLink(url) {
-    if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
+    // Ako je Instagram ili Meni (babaluu), otvaramo u novom tabu jer blokiraju iframe
+    if (url.includes('instagram.com') || url.includes('babaluu.me') || url === settings.menu_link) {
+        window.open(url, '_blank');
+        return;
+    }
+    // Za sve ostale linkove koristimo iframe sa strelicom nazad
     document.getElementById('fullIframe').src = url;
     document.getElementById('fullFrame').classList.add('active');
 }
+
+function openMenu() {
+    window.open(settings.menu_link, '_blank');
+}
+
 function closeFrame() {
     document.getElementById('fullFrame').classList.remove('active');
     document.getElementById('fullIframe').src = 'about:blank';
 }
 
 async function init() {
-    // Pokušaj učitavanje iz oblaka – dok se ne učita, koristimo default
     applySettings();
     await loadFromCloud();
 
@@ -365,7 +367,6 @@ async function init() {
         document.getElementById('clock').textContent = new Date().toLocaleTimeString('sr',{hour:'2-digit',minute:'2-digit'});
     },1000);
 
-    // Vremenska prognoza – ako ključ ne radi, koristi fallback
     async function fetchWeather() {
         try {
             const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=Budva,ME&units=metric&appid=bd5e378503939ddaee76f1e1e4f8c4b2&lang=sr');
@@ -385,7 +386,6 @@ async function init() {
     document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
     document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,iframe')) e.preventDefault(); },{passive:false});
 
-    // Fullscreen zahtevamo tek nakon prvog klika (user gesture)
     document.body.addEventListener('click', function requestFullscreenOnce() {
         document.documentElement.requestFullscreen?.().catch(()=>{});
         document.body.removeEventListener('click', requestFullscreenOnce);
