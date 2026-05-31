@@ -153,7 +153,7 @@ const DEFAULT_SETTINGS = {
         {id:'3', icon:'🛵', label:'Dostava', link:'https://wolt.com/...', type:'link', order:3},
         {id:'4', icon:'🏛', label:'Istorija Budve', link:'https://www.babaluu.me/istorija-budve', type:'link', order:4}
     ],
-    menu_link: 'https://www.babaluu.me/jelovnik',
+    menu_link: 'https://www.babaluu.me/me/jelovnik',
     pin_code: '0987'
 };
 
@@ -299,16 +299,25 @@ function openLink(url) {
 
     if (!url) return;
 
-    console.log("OTVARAM:", url);
+    const externalSites = [
+        'instagram.com',
+        'facebook.com',
+        'tiktok.com',
+        'youtube.com'
+    ];
 
-    document.getElementById('fullFrame').classList.add('active');
+    const isExternal = externalSites.some(site =>
+        url.toLowerCase().includes(site)
+    );
+
+    if (isExternal) {
+        window.open(url, '_blank');
+        return;
+    }
+
     document.getElementById('fullIframe').src = url;
+    document.getElementById('fullFrame').classList.add('active');
 }
-function closeFrame() {
-    document.getElementById('fullFrame').classList.remove('active');
-    document.getElementById('fullIframe').src = 'about:blank';
-}
-
 async function init() {
     await loadSettings();
     applySettings();
