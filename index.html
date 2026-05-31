@@ -295,8 +295,24 @@ function toggleAdmin() { document.getElementById('adminPanel').classList.toggle(
 function openLink(url) {
     if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    document.getElementById('fullIframe').src = proxyUrl;
+
+    const externalSites = [
+        'instagram.com',
+        'facebook.com',
+        'tiktok.com',
+        'youtube.com'
+    ];
+
+    const isExternal = externalSites.some(site =>
+        url.toLowerCase().includes(site)
+    );
+
+    if (isExternal) {
+        window.open(url, '_blank');
+        return;
+    }
+
+    document.getElementById('fullIframe').src = url;
     document.getElementById('fullFrame').classList.add('active');
 }
 
