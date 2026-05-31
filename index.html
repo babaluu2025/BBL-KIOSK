@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Babaluu Kiosk</title>
     <meta name="theme-color" content="#000000">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖥️</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
@@ -114,13 +115,10 @@ console.log('🚀 Aplikacija pokrenuta');
 // ==================== SUPABASE ====================
 const SUPABASE_URL = 'https://itoyvqqssqmeyxawvulq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nbUWlCIXbB48NoBRhH4ucg_PfCAmau1';
-let supabase = null;
-try {
-    supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('✅ Supabase inicijalizovan');
-} catch(e) {
-    console.warn('⚠️ Supabase nije inicijalizovan', e);
-}
+
+// Koristimo globalni 'supabase' iz CDN-a, ne deklarišemo ponovo
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+console.log('✅ Supabase inicijalizovan');
 
 // ==================== PODRAZUMEVANI PODACI ====================
 const DEFAULT_BUTTONS = [
@@ -148,20 +146,15 @@ let slideInterval = null;
 
 // ==================== CLOUD FUNKCIJE ====================
 async function loadFromCloud() {
-    if (!supabase) {
-        console.log('ℹ️ Nema Supabase, koristim lokalne podatke');
-        return;
-    }
     try {
         console.log('🔄 Učitavam iz oblaka...');
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('kiosk_settings')
             .select('*')
             .eq('id', 1)
             .single();
         if (data) {
             console.log('✅ Podaci iz oblaka:', data);
-            // Merge sa default vrednostima za svaki slučaj
             settings = {
                 slideshow_images: data.slideshow_images || DEFAULT_SETTINGS.slideshow_images,
                 slide_speed: data.slide_speed || DEFAULT_SETTINGS.slide_speed,
@@ -179,9 +172,8 @@ async function loadFromCloud() {
 }
 
 async function saveToCloud() {
-    if (!supabase) return;
     try {
-        await supabase
+        await db
             .from('kiosk_settings')
             .upsert({
                 id: 1,
