@@ -150,11 +150,12 @@ const SUPABASE_URL = 'https://itoyvqqssqmeyxawvulq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nbUWlCIXbB48NoBRhH4ucg_PfCAmau1';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Podrazumevane vrednosti – sada su linkovi prazni
 const DEFAULT_BUTTONS = [
-    {id:'1', icon:'📸', label:'Instagram', link:'https://www.instagram.com/babaluu_budva/', type:'link', order:1},
-    {id:'2', icon:'ℹ️', label:'O nama', link:'https://www.babaluu.me/o-nama', type:'link', order:2},
-    {id:'3', icon:'🛵', label:'Dostava', link:'https://wolt.com/...', type:'link', order:3},
-    {id:'4', icon:'🏛', label:'Istorija Budve', link:'https://www.babaluu.me/istorija-budve', type:'link', order:4}
+    {id:'1', icon:'📸', label:'Instagram', link:'', type:'link', order:1},
+    {id:'2', icon:'ℹ️', label:'O nama', link:'', type:'link', order:2},
+    {id:'3', icon:'🛵', label:'Dostava', link:'', type:'link', order:3},
+    {id:'4', icon:'🏛', label:'Istorija Budve', link:'', type:'link', order:4}
 ];
 
 const DEFAULT_SETTINGS = {
@@ -165,7 +166,7 @@ const DEFAULT_SETTINGS = {
     ],
     slide_speed: 4,
     buttons: DEFAULT_BUTTONS,
-    menu_link: 'https://www.babaluu.me/me/jelovnik',
+    menu_link: '',
     pin_code: '0987'
 };
 
@@ -222,6 +223,7 @@ function applySettings() {
     if (slideshow) {
         slideshow.innerHTML = '';
         (settings.slideshow_images || []).forEach(url => {
+            if (!url) return;
             const div = document.createElement('div');
             div.className = 'slide';
             div.style.backgroundImage = `url(${url})`;
@@ -240,7 +242,8 @@ function applySettings() {
     const sideButtons = document.getElementById('sideButtons');
     if (sideButtons) {
         sideButtons.innerHTML = '';
-        (settings.buttons || DEFAULT_BUTTONS).sort((a,b) => (a.order||0)-(b.order||0)).forEach(btn => {
+        (settings.buttons || []).sort((a,b) => (a.order||0)-(b.order||0)).forEach(btn => {
+            if (!btn.label) return; // preskoči prazne nazive
             const button = document.createElement('button');
             button.className = 'side-btn';
             button.textContent = `${btn.icon||''} ${btn.label||''}`;
@@ -269,6 +272,7 @@ function renderAdminPanel() {
     if (slidesList) {
         slidesList.innerHTML = '';
         (settings.slideshow_images || []).forEach((url, i) => {
+            if (!url) return;
             const div = document.createElement('div');
             div.className = 'slide-item';
             div.innerHTML = `<img src="${url}" onerror="this.src='data:image/svg+xml,...'"><span style="flex:1;font-size:12px;">${url.substring(0,50)}...</span><button class="admin-btn admin-btn-delete" onclick="removeSlide(${i})">✕</button>`;
@@ -283,6 +287,7 @@ function renderAdminPanel() {
     if (buttonsList) {
         buttonsList.innerHTML = '';
         (settings.buttons || []).forEach((btn, i) => {
+            if (!btn.label) return;
             const div = document.createElement('div');
             div.className = 'slide-item';
             div.innerHTML = `<span>${btn.icon||''}</span><span style="flex:1;">${btn.label||''}</span><button class="admin-btn admin-btn-edit" onclick="editButton(${i})">✏️</button><button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>`;
@@ -301,7 +306,7 @@ function addButton() {
     const label = prompt('Naziv:'); if (!label) return;
     const icon = prompt('Ikona:', '📎');
     const link = prompt('URL:', 'https://');
-    if (!link) return;
+    if (link === null) return; // cancel
     settings.buttons.push({ id: Date.now().toString(36), icon: icon||'📎', label, link, type:'link', order: settings.buttons.length+1 });
     applySettings();
 }
@@ -367,7 +372,6 @@ async function init() {
         setTimeout(()=>{logoClicks=0;},2000);
     });
 
-    // Fullscreen zahtevamo samo na prvi klik korisnika (bilo gde)
     document.body.addEventListener('click', function requestFullscreenOnce() {
         document.documentElement.requestFullscreen?.().catch(()=>{});
         document.body.removeEventListener('click', requestFullscreenOnce);
