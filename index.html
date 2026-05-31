@@ -293,15 +293,8 @@ function checkPin() { if(document.getElementById('pinInput').value===settings.pi
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
 function openLink(url) {
-
-    if (!url || url === 'meni') {
-        url = settings.menu_link;
-    }
-
+    if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
-
-    window.location.href = url;
-}
 
     const externalSites = [
         'instagram.com',
