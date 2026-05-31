@@ -1,51 +1,64 @@
-// api/proxy.js – menja sve relativne linkove da idu kroz proxy
 export default async function handler(req, res) {
-  let url = req.query.url;
+  const url = req.query.url;
   if (!url) return res.status(400).json({ error: 'Missing url' });
-
-  // Dekodiraj ako je već enkodiran
-  try { url = decodeURIComponent(url); } catch(e) {}
 
   try {
     const response = await fetch(url);
-    const contentType = response.headers.get('content-type') || 'text/html';
-    res.setHeader('Content-Type', contentType);
-    res.status(response.status);
+    const contentType = response.headers.get('content-type') || '';
+
+    // Remove headers that block iframe
+    const headers = {};
+    for (const [key, value] of response.headers) {
+      const lower = key.toLowerCase();
+      if (lower !== 'x-frame-options' && lower !== 'content-security-policy') {
+        headers[key] = value;
+      }
+    }
+    headers['access-control-allow-origin'] = '*';
+    res.writeHead(response.status, headers);
 
     if (contentType.includes('text/html')) {
       let html = await response.text();
+      const origin = new URL(url).origin;  // e.g. https://www.babaluu.me
 
-      // 1. Skini meta tagove koji blokiraju iframe
-      html = html.replace(/<meta[^>]*http-equiv=["']X-Frame-Options[^>]*>/gi, '');
-      html = html.replace(/<meta[^>]*content=["']X-Frame-Options[^>]*>/gi, '');
-
-      // 2. Prepravi SVE linkove da idu kroz nas proxy
-      //    href="..." i src="..."
-      const domain = new URL(url).origin; // npr. https://www.babaluu.me
-
-      // a) Apsolutni linkovi koji počinju sa http(s)
+      // Rewrite relative URLs to absolute
       html = html.replace(
-        /(href|src)=["'](https?:\/\/[^"']+)["']/gi,
-        (match, attr, link) => `${attr}="/api/proxy?url=${encodeURIComponent(link)}"`
+        /(src|href|action)=["'](?!https?:\/\/)([^"']+)["']/gi,
+        (match, attr, link) => {
+          if (link.startsWith('//')) {
+            return `${attr}="https:${link}"`;
+          }
+          if (link.startsWith('/')) {
+            return `${attr}="${origin}${link}"`;
+          }
+          // relative path (e.g. "js/app.js")
+          return `${attr}="${origin}/${link}"`;
+        }
       );
 
-      // b) Relativni linkovi koji počinju sa /
+      // Also fix srcset attributes (optional, but good to have)
       html = html.replace(
-        /(href|src)=["'](\/[^"']+)["']/gi,
-        (match, attr, link) => `${attr}="/api/proxy?url=${encodeURIComponent(domain + link)}"`
+        /srcset=["']([^"']+)["']/gi,
+        (match, srcset) => {
+          const parts = srcset.split(',').map(part => {
+            const trimmed = part.trim();
+            if (trimmed.startsWith('http')) return trimmed;
+            if (trimmed.startsWith('/')) return origin + trimmed;
+            return origin + '/' + trimmed;
+          });
+          return `srcset="${parts.join(', ')}"`;
+        }
       );
 
-      // c) Relativni linkovi koji ne počinju sa / (npr. "pice.php")
-      html = html.replace(
-        /(href|src)=["'](?!https?:\/\/|\/)([^"']+)["']/gi,
-        (match, attr, link) => `${attr}="/api/proxy?url=${encodeURIComponent(domain + '/' + link)}"`
-      );
-
-      res.send(html);
+      res.end(html);
     } else {
-      // Za slike, CSS, JS… samo prosledi
-      const buffer = await response.arrayBuffer();
-      res.send(Buffer.from(buffer));
+      // For non-HTML resources (JS, CSS, images), pipe them directly
+      // This avoids the double-proxy issue by letting the browser fetch these from the original server.
+      // However, note that some resources may still be blocked by CORS if the original server doesn't allow.
+      // In that case, we'd need to proxy those as well, but that's complex.
+      // For now, we let the browser fetch them directly (they will be loaded from babaluu.me).
+      // We need to set the correct content-type and send the body.
+      res.end(response.body);
     }
   } catch (e) {
     res.status(500).json({ error: 'Proxy error' });
