@@ -41,12 +41,10 @@
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
         .pin-cancel { background:none; border:none; color:#aaa; font-size:16px; cursor:pointer; }
 
-        /* IFrame preko celog ekrana */
         .fullscreen-iframe { position:fixed; top:0; left:0; width:100%; height:100%; z-index:300; display:none; }
         .fullscreen-iframe.active { display:block; }
         .fullscreen-iframe iframe { width:100%; height:100%; border:none; }
 
-        /* Strelica Nazad – vidljiva samo kad je iframe aktivan */
         .back-arrow { 
             position:fixed; top:20px; left:20px; 
             width:60px; height:60px; border-radius:50%; 
@@ -104,12 +102,10 @@
     <button class="pin-cancel" onclick="hidePinDialog()">Odustani</button>
 </div>
 
-<!-- Strelica Nazad -->
 <button class="back-arrow" id="backArrow" onclick="closeFrame()">←</button>
 
-<!-- IFrame -->
 <div class="fullscreen-iframe" id="fullFrame">
-    <iframe id="fullIframe" src="about:blank"></iframe>
+    <iframe id="fullIframe" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-actual"></iframe>
 </div>
 
 <div class="admin-panel" id="adminPanel">
@@ -150,13 +146,10 @@
 <script>
 console.log('🚀 Aplikacija pokrenuta');
 
-// ==================== SUPABASE ====================
 const SUPABASE_URL = 'https://itoyvqqssqmeyxawvulq.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_nbUWlCIXbB48NoBRhH4ucg_PfCAmau1';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-console.log('✅ Supabase inicijalizovan');
 
-// ==================== PODRAZUMEVANI PODACI ====================
 const DEFAULT_BUTTONS = [
     {id:'1', icon:'📸', label:'Instagram', link:'https://www.instagram.com/babaluu_budva/', type:'link', order:1},
     {id:'2', icon:'ℹ️', label:'O nama', link:'https://www.babaluu.me/o-nama', type:'link', order:2},
@@ -181,14 +174,9 @@ let currentSlide = 0;
 let slideInterval = null;
 let logoClicks = 0;
 
-// ==================== CLOUD FUNKCIJE ====================
 async function loadFromCloud() {
     try {
-        const { data, error } = await db
-            .from('kiosk_settings')
-            .select('*')
-            .eq('id', 1)
-            .single();
+        const { data } = await db.from('kiosk_settings').select('*').eq('id', 1).single();
         if (data) {
             settings = {
                 slideshow_images: data.slideshow_images || DEFAULT_SETTINGS.slideshow_images,
@@ -198,7 +186,7 @@ async function loadFromCloud() {
                 pin_code: data.pin_code || DEFAULT_SETTINGS.pin_code
             };
         }
-    } catch(e) { console.warn(e); }
+    } catch(e) {}
     applySettings();
 }
 
@@ -212,10 +200,9 @@ async function saveToCloud() {
             menu_link: settings.menu_link,
             pin_code: settings.pin_code
         });
-    } catch(e) { console.warn(e); }
+    } catch(e) {}
 }
 
-// ==================== PRIMENI PODEŠAVANJA ====================
 function applySettings() {
     const slideshow = document.getElementById('slideshow');
     if (slideshow) {
@@ -257,7 +244,6 @@ function nextSlide() {
     slides[currentSlide].classList.add('active');
 }
 
-// ==================== ADMIN PANEL ====================
 function renderAdminPanel() {
     const slidesList = document.getElementById('slidesList');
     if (slidesList) {
@@ -265,10 +251,7 @@ function renderAdminPanel() {
         (settings.slideshow_images || []).forEach((url, i) => {
             const div = document.createElement('div');
             div.className = 'slide-item';
-            div.innerHTML = `
-                <img src="${url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2240%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%23333%22/></svg>'">
-                <span style="flex:1;font-size:12px;">${url.substring(0,50)}...</span>
-                <button class="admin-btn admin-btn-delete" onclick="removeSlide(${i})">✕</button>`;
+            div.innerHTML = `<img src="${url}" onerror="this.src='data:image/svg+xml,...'"><span style="flex:1;font-size:12px;">${url.substring(0,50)}...</span><button class="admin-btn admin-btn-delete" onclick="removeSlide(${i})">✕</button>`;
             slidesList.appendChild(div);
         });
     }
@@ -282,11 +265,7 @@ function renderAdminPanel() {
         (settings.buttons || []).forEach((btn, i) => {
             const div = document.createElement('div');
             div.className = 'slide-item';
-            div.innerHTML = `
-                <span>${btn.icon||''}</span>
-                <span style="flex:1;font-size:14px;">${btn.label||''}</span>
-                <button class="admin-btn admin-btn-edit" onclick="editButton(${i})">✏️</button>
-                <button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>`;
+            div.innerHTML = `<span>${btn.icon||''}</span><span style="flex:1;">${btn.label||''}</span><button class="admin-btn admin-btn-edit" onclick="editButton(${i})">✏️</button><button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>`;
             buttonsList.appendChild(div);
         });
     }
@@ -300,7 +279,7 @@ function removeSlide(i) { settings.slideshow_images.splice(i,1); applySettings()
 
 function addButton() {
     const label = prompt('Naziv:'); if (!label) return;
-    const icon = prompt('Ikona (📸):', '📎');
+    const icon = prompt('Ikona:', '📎');
     const link = prompt('URL:', 'https://');
     if (!link) return;
     settings.buttons.push({ id: Date.now().toString(36), icon: icon||'📎', label, link, type:'link', order: settings.buttons.length+1 });
@@ -325,7 +304,6 @@ async function saveSettings() {
     alert('✅ Sačuvano!');
 }
 
-// ==================== KIOSK MOD ====================
 function showPinDialog() { document.getElementById('pinDialog').classList.add('active'); document.getElementById('pinInput').value=''; setTimeout(()=>document.getElementById('pinInput').focus(),300); }
 function hidePinDialog() { document.getElementById('pinDialog').classList.remove('active'); }
 function checkPin() {
@@ -334,22 +312,27 @@ function checkPin() {
 }
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); }
 
-// ==================== MENI I LINKOVI (IFRAME SA STRELICOM) ====================
 function openLink(url) {
-    // Ako je url prazan ili nepoznat, koristi meni link
     if (!url || url === 'meni') url = settings.menu_link;
-    document.getElementById('fullIframe').src = url;
-    document.getElementById('fullFrame').classList.add('active');
-    document.getElementById('backArrow').classList.add('visible');
+    if (!url) return;
+
+    const iframe = document.getElementById('fullIframe');
+    const frame = document.getElementById('fullFrame');
+    const backArrow = document.getElementById('backArrow');
+
+    iframe.src = url;
+    frame.classList.add('active');
+    backArrow.classList.add('visible');
 }
 
 function closeFrame() {
-    document.getElementById('fullFrame').classList.remove('active');
-    document.getElementById('fullIframe').src = 'about:blank';
+    const frame = document.getElementById('fullFrame');
+    const iframe = document.getElementById('fullIframe');
+    frame.classList.remove('active');
+    iframe.src = 'about:blank';
     document.getElementById('backArrow').classList.remove('visible');
 }
 
-// ==================== INICIJALIZACIJA ====================
 async function init() {
     applySettings();
     await loadFromCloud();
