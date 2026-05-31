@@ -298,8 +298,8 @@ function openLink(url) {
     if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
     
-    // Koristimo allOrigins proxy da zaobiđemo X-Frame-Options blokade
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    // Koristi svoj Vercel proxy, a ne allOrigins
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(url)}`;
     document.getElementById('fullIframe').src = proxyUrl;
     document.getElementById('fullFrame').classList.add('active');
 }
