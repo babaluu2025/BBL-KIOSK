@@ -40,11 +40,14 @@
         .pin-input { font-size:36px; text-align:center; width:180px; padding:12px; border-radius:12px; border:2px solid #e94560; background:#1a1a2e; color:#fff; letter-spacing:8px; }
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
 
-        /* Kontejner za prikaz – koristimo object tag */
-        .content-container { position:fixed; top:0; left:0; width:100%; height:100%; z-index:300; display:none; background:white; }
-        .content-container.active { display:block; }
-        .content-container object, .content-container iframe { width:100%; height:100%; border:none; }
-        .back-arrow { position:absolute; top:20px; left:20px; width:60px; height:60px; border-radius:50%; background:rgba(233,69,96,0.9); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; cursor:pointer; z-index:301; border:none; }
+        /* Traka za povratak */
+        .back-bar { position:fixed; top:0; left:0; width:100%; height:60px; background:rgba(0,0,0,0.8); z-index:350; display:none; align-items:center; padding:0 20px; }
+        .back-bar.visible { display:flex; }
+        .back-btn { width:50px; height:50px; border-radius:50%; background:#e94560; color:#fff; display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; border:none; }
+
+        .webview-container { position:fixed; top:0; left:0; width:100%; height:100%; z-index:340; display:none; }
+        .webview-container.active { display:block; }
+        .webview-container iframe { width:100%; height:100%; border:none; margin-top:60px; }
 
         .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
@@ -94,10 +97,14 @@
     <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="hidePinDialog()">Odustani</button>
 </div>
 
-<!-- Kontejner za sadržaj (object/iframe) -->
-<div class="content-container" id="contentContainer">
-    <button class="back-arrow" onclick="closeContent()">←</button>
-    <div id="contentWrapper"></div>
+<!-- Traka za povratak -->
+<div class="back-bar" id="backBar">
+    <button class="back-btn" onclick="closeWebView()">← Nazad</button>
+</div>
+
+<!-- WebView kontejner -->
+<div class="webview-container" id="webViewContainer">
+    <iframe id="webViewIframe" src="about:blank"></iframe>
 </div>
 
 <div class="admin-panel" id="adminPanel">
@@ -333,29 +340,24 @@ function checkPin() {
 }
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
-// ==================== OTVARANJE LINKA U ISTOM PROZORU ====================
+// ==================== OTVARANJE LINKA SA TRAKOM ZA POVRATAK ====================
 function openLink(url) {
     if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
 
-    const container = document.getElementById('contentContainer');
-    const wrapper = document.getElementById('contentWrapper');
+    // Kreiramo iframe koji će prikazati sadržaj
+    const iframe = document.getElementById('webViewIframe');
+    iframe.src = url;
     
-    // Koristimo <object> tag koji zaobilazi X-Frame-Options za neke sajtove
-    wrapper.innerHTML = '';
-    const obj = document.createElement('object');
-    obj.data = url;
-    obj.type = 'text/html';
-    obj.style.width = '100%';
-    obj.style.height = '100%';
-    wrapper.appendChild(obj);
-    
-    container.classList.add('active');
+    // Prikazujemo kontejner i traku za povratak
+    document.getElementById('webViewContainer').classList.add('active');
+    document.getElementById('backBar').classList.add('visible');
 }
 
-function closeContent() {
-    document.getElementById('contentContainer').classList.remove('active');
-    document.getElementById('contentWrapper').innerHTML = '';
+function closeWebView() {
+    document.getElementById('webViewContainer').classList.remove('active');
+    document.getElementById('backBar').classList.remove('visible');
+    document.getElementById('webViewIframe').src = 'about:blank';
 }
 
 async function init() {
@@ -389,7 +391,7 @@ async function init() {
 
     document.addEventListener('contextmenu', e=>e.preventDefault());
     document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
-    document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,object')) e.preventDefault(); },{passive:false});
+    document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,iframe')) e.preventDefault(); },{passive:false});
 
     document.body.addEventListener('click', function requestFullscreenOnce() {
         document.documentElement.requestFullscreen?.().catch(()=>{});
