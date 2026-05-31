@@ -105,7 +105,7 @@
 <button class="back-arrow" id="backArrow" onclick="closeFrame()">←</button>
 
 <div class="fullscreen-iframe" id="fullFrame">
-    <iframe id="fullIframe" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-actual"></iframe>
+    <iframe id="fullIframe" src="about:blank" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation"></iframe>
 </div>
 
 <div class="admin-panel" id="adminPanel">
@@ -169,7 +169,6 @@ const DEFAULT_SETTINGS = {
     pin_code: '0987'
 };
 
-// Prvo učitaj iz localStorage, pa onda iz cloud-a
 let settings = JSON.parse(localStorage.getItem('kiosk_settings')) || JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
 let currentSlide = 0;
 let slideInterval = null;
@@ -182,12 +181,10 @@ async function loadFromCloud() {
         if (data) {
             console.log('✅ Podaci iz Supabase:', data);
             settings = data;
-            // Ažuriraj i localStorage
             localStorage.setItem('kiosk_settings', JSON.stringify(settings));
             applySettings();
         } else {
             console.log('⚠️ Nema podataka u Supabase. Koristim lokalne.');
-            // Pokušaj da kreiraš inicijalne podatke u bazi
             await db.from('kiosk_settings').upsert({...DEFAULT_SETTINGS, id:1});
         }
     } catch(e) {
@@ -360,13 +357,8 @@ function closeFrame() {
 async function init() {
     console.log('⚡ Inicijalizacija...');
     
-    // Prvo primeni trenutna podešavanja (iz localStorage ili default)
     applySettings();
-    
-    // Pokušaj da učitamo iz cloud-a i sinhronizujemo
     await loadFromCloud();
-    
-    // Osveži admin panel
     renderAdminPanel();
 
     document.getElementById('logo').addEventListener('click', () => {
@@ -374,6 +366,12 @@ async function init() {
         if (logoClicks >= 5) { logoClicks=0; showPinDialog(); }
         setTimeout(()=>{logoClicks=0;},2000);
     });
+
+    // Fullscreen zahtevamo samo na prvi klik korisnika (bilo gde)
+    document.body.addEventListener('click', function requestFullscreenOnce() {
+        document.documentElement.requestFullscreen?.().catch(()=>{});
+        document.body.removeEventListener('click', requestFullscreenOnce);
+    }, { once: true });
 
     setInterval(()=>{
         document.getElementById('clock').textContent = new Date().toLocaleTimeString('sr',{hour:'2-digit',minute:'2-digit'});
@@ -384,7 +382,6 @@ async function init() {
     document.addEventListener('contextmenu', e=>e.preventDefault());
     document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
     document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,iframe')) e.preventDefault(); },{passive:false});
-    document.documentElement.requestFullscreen?.().catch(()=>{});
     
     console.log('✅ Inicijalizacija završena');
 }
@@ -392,9 +389,12 @@ async function init() {
 async function fetchWeather() {
     try {
         const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=Budva,ME&units=metric&appid=bd5e378503939ddaee76f1e1e4f8c4b2&lang=sr');
+        if (!res.ok) throw new Error('API key invalid');
         const data = await res.json();
         if (data.main) document.getElementById('weather').innerHTML = `🌤 ${Math.round(data.main.temp)}°C`;
-    } catch(e) {}
+    } catch(e) {
+        console.warn('⚠️ Vremenska prognoza nije dostupna:', e.message);
+    }
 }
 
 window.addEventListener('load', init);
