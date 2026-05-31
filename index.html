@@ -5,66 +5,63 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Babaluu Kiosk</title>
     <meta name="theme-color" content="#000000">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
         body { width:100vw; height:100vh; overflow:hidden; background:#000; font-family:'Segoe UI', sans-serif; }
 
-        /* Slideshow pozadina */
         .slideshow { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; }
         .slide { position:absolute; top:0; left:0; width:100%; height:100%; background-size:cover; background-position:center; opacity:0; transition:opacity 1s ease; }
         .slide.active { opacity:1; }
 
-        /* Overlay sadržaj */
         .overlay { position:fixed; top:0; left:0; width:100%; height:100%; z-index:10; display:flex; flex-direction:column; justify-content:space-between; pointer-events:none; }
         .overlay > * { pointer-events:auto; }
 
-        /* Gornji levi logo */
-        .logo { position:absolute; top:20px; left:20px; width:60px; height:60px; border-radius:50%; background:#e94560; color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:bold; cursor:pointer; z-index:20; box-shadow: 0 0 15px rgba(0,0,0,0.5); }
+        .logo { position:absolute; top:20px; left:20px; width:60px; height:60px; border-radius:50%; background:#e94560; color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:bold; cursor:pointer; z-index:20; }
 
-        /* Gornji desni – sat i vreme */
         .top-right { position:absolute; top:20px; right:20px; display:flex; gap:15px; align-items:center; color:#fff; font-size:18px; text-shadow:1px 1px 3px rgba(0,0,0,0.8); }
         .clock { font-size:24px; font-weight:bold; }
         .weather { display:flex; align-items:center; gap:5px; }
 
-        /* Jezičke zastavice */
         .lang-bar { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); display:flex; gap:10px; z-index:15; }
         .flag { width:40px; height:30px; border-radius:5px; cursor:pointer; background-size:cover; border:2px solid white; opacity:0.8; transition:0.2s; }
         .flag:hover, .flag.active { opacity:1; border-color:#e94560; }
 
-        /* Kockice (dugmad sa leve strane) */
         .side-buttons { position:absolute; left:20px; bottom:120px; display:flex; flex-direction:column; gap:10px; }
         .side-btn { background:rgba(0,0,0,0.7); color:#fff; padding:12px 20px; border-radius:25px; font-size:18px; cursor:pointer; border:2px solid transparent; text-align:center; backdrop-filter: blur(5px); transition: all 0.2s; }
         .side-btn:active { border-color:#e94560; background:rgba(0,0,0,0.9); }
 
-        /* Donji centar – glavno dugme */
         .menu-btn { position:absolute; bottom:30px; left:50%; transform:translateX(-50%); background:#e94560; color:#fff; padding:18px 40px; border-radius:50px; font-size:24px; font-weight:bold; cursor:pointer; border:none; box-shadow: 0 4px 15px rgba(0,0,0,0.4); transition: all 0.2s; }
         .menu-btn:active { background:#c0392b; transform:translateX(-50%) scale(0.95); }
 
-        /* Pin dijalog */
         .pin-dialog { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:999; display:none; align-items:center; justify-content:center; flex-direction:column; gap:20px; }
         .pin-dialog.active { display:flex; }
         .pin-input { font-size:36px; text-align:center; width:180px; padding:12px; border-radius:12px; border:2px solid #e94560; background:#1a1a2e; color:#fff; letter-spacing:8px; }
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
-        .pin-cancel { background:none; border:none; color:#aaa; font-size:16px; cursor:pointer; }
 
-        /* Modal za meni (iframe) */
         .menu-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:100; display:none; }
         .menu-modal.active { display:block; }
         .menu-modal iframe { width:100%; height:100%; border:none; }
         .modal-close { position:absolute; top:15px; right:20px; width:50px; height:50px; border-radius:50%; background:#e94560; color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:101; border:none; }
 
-        /* Admin panel placeholder */
-        .admin-panel { position:fixed; top:0; right:0; width:350px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
+        .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
-        .admin-toggle { position:absolute; left:-50px; top:20px; width:50px; height:50px; background:#e94560; border-radius:10px 0 0 10px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+        .admin-toggle { position:absolute; left:-50px; top:20px; width:50px; height:50px; background:#e94560; border-radius:10px 0 0 10px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:24px; }
+        .admin-section { margin-bottom:20px; }
+        .admin-section h3 { color:#e94560; margin-bottom:10px; }
+        .admin-input { width:100%; padding:10px; margin-bottom:8px; border-radius:8px; border:1px solid #333; background:#2a2a3e; color:#fff; }
+        .admin-btn { padding:10px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; margin:2px; }
+        .admin-btn-save { background:#28a745; color:#fff; }
+        .admin-btn-delete { background:#dc3545; color:#fff; }
+        .admin-btn-add { background:#17a2b8; color:#fff; }
+        .slide-item { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+        .slide-item img { width:60px; height:40px; object-fit:cover; border-radius:5px; }
     </style>
 </head>
 <body>
 
-<!-- Slideshow -->
 <div class="slideshow" id="slideshow"></div>
 
-<!-- Overlay -->
 <div class="overlay">
     <div class="logo" id="logo">B</div>
     <div class="top-right">
@@ -81,123 +78,346 @@
         <div class="flag" style="background-image:url('https://flagcdn.com/w40/tr.png')" data-lang="tr"></div>
     </div>
 
-    <div class="side-buttons" id="sideButtons">
-        <button class="side-btn" onclick="window.open('https://www.instagram.com/babaluu.me/','_blank')">📸 Instagram</button>
-        <button class="side-btn" onclick="showAbout()">ℹ️ O nama</button>
-        <button class="side-btn" onclick="showDelivery()">🛵 Dostava</button>
-        <button class="side-btn" onclick="showHistory()">🏛 Istorija Budve</button>
-    </div>
+    <div class="side-buttons" id="sideButtons"></div>
 
-    <button class="menu-btn" onclick="openMenu()">🍽 Pritisni za meni</button>
+    <button class="menu-btn" id="menuBtn" onclick="openMenu()">🍽 Pritisni za meni</button>
 </div>
 
-<!-- PIN dijalog -->
 <div class="pin-dialog" id="pinDialog">
-    <div style="color:#fff;font-size:22px;">🔒 Unesite PIN za izlazak</div>
-    <input type="password" class="pin-input" id="pinInput" maxlength="4" inputmode="numeric" pattern="[0-9]*">
+    <div style="color:#fff;font-size:22px;">🔒 Unesite PIN</div>
+    <input type="password" class="pin-input" id="pinInput" maxlength="4" inputmode="numeric">
     <button class="pin-btn" onclick="checkPin()">Potvrdi</button>
-    <button class="pin-cancel" onclick="hidePinDialog()">Odustani</button>
+    <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="hidePinDialog()">Odustani</button>
 </div>
 
-<!-- Modal za meni -->
 <div class="menu-modal" id="menuModal">
     <button class="modal-close" onclick="closeMenu()">✕</button>
     <iframe id="menuIframe" src="about:blank"></iframe>
 </div>
 
-<!-- Placeholder za budući admin panel -->
 <div class="admin-panel" id="adminPanel">
     <div class="admin-toggle" onclick="toggleAdmin()">⚙️</div>
-    <h2>Admin Panel</h2>
-    <p>Ovde će ići podešavanja...</p>
+    <h2 style="margin-bottom:20px;">Admin Panel</h2>
+    
+    <div class="admin-section">
+        <h3>Slideshow slike</h3>
+        <div id="slidesList"></div>
+        <input type="text" class="admin-input" id="newSlideUrl" placeholder="URL slike...">
+        <button class="admin-btn admin-btn-add" onclick="addSlide()">+ Dodaj sliku</button>
+    </div>
+    
+    <div class="admin-section">
+        <h3>Brzina slajdova (sekunde)</h3>
+        <input type="number" class="admin-input" id="slideSpeed" value="4" min="1" max="10">
+    </div>
+    
+    <div class="admin-section">
+        <h3>Kockice (dugmad)</h3>
+        <div id="buttonsList"></div>
+        <button class="admin-btn admin-btn-add" onclick="addButton()">+ Dodaj kockicu</button>
+    </div>
+    
+    <div class="admin-section">
+        <h3>Link menija</h3>
+        <input type="text" class="admin-input" id="menuLink">
+    </div>
+    
+    <div class="admin-section">
+        <h3>PIN kod</h3>
+        <input type="text" class="admin-input" id="pinCode" maxlength="4">
+    </div>
+    
+    <button class="admin-btn admin-btn-save" onclick="saveSettings()" style="width:100%;padding:15px;font-size:18px;">💾 Sačuvaj sve</button>
 </div>
 
 <script>
-// ==================== KIOSK MOD ====================
-const PIN_CODE = '0987';
+// ==================== SUPABASE ====================
+const SUPABASE_URL = 'https://itoyvqqssqmeyxawvulq.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_nbUWlCIXbB48NoBRhH4ucg_PfCAmau1';
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==================== GLOBALNE PROMENLJIVE ====================
+let settings = {
+    slideshow_images: [],
+    slide_speed: 4,
+    buttons: [],
+    menu_link: 'https://www.babaluu.me/me/jelovnik',
+    pin_code: '0987'
+};
+let currentSlide = 0;
+let slideInterval = null;
 let logoClicks = 0;
 
-document.getElementById('logo').addEventListener('click', () => {
-    logoClicks++;
-    if (logoClicks >= 5) {
-        logoClicks = 0;
-        showPinDialog();
+// ==================== CLOUD FUNKCIJE ====================
+async function loadSettings() {
+    const { data, error } = await supabase
+        .from('kiosk_settings')
+        .select('*')
+        .eq('id', 1)
+        .single();
+    
+    if (data) {
+        settings = data;
+        applySettings();
     }
-    setTimeout(() => { logoClicks = 0; }, 2000);
-});
+}
 
+async function saveSettingsToCloud() {
+    await supabase
+        .from('kiosk_settings')
+        .upsert({
+            id: 1,
+            slideshow_images: settings.slideshow_images,
+            slide_speed: settings.slide_speed,
+            buttons: settings.buttons,
+            menu_link: settings.menu_link,
+            pin_code: settings.pin_code
+        });
+}
+
+function subscribeToChanges() {
+    supabase
+        .channel('kiosk-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'kiosk_settings' }, (payload) => {
+            if (payload.new && payload.new.id === 1) {
+                settings = payload.new;
+                applySettings();
+            }
+        })
+        .subscribe();
+}
+
+// ==================== PRIMENI PODEŠAVANJA ====================
+function applySettings() {
+    // Slideshow
+    const slideshow = document.getElementById('slideshow');
+    slideshow.innerHTML = '';
+    settings.slideshow_images.forEach(url => {
+        const div = document.createElement('div');
+        div.className = 'slide';
+        div.style.backgroundImage = `url(${url})`;
+        slideshow.appendChild(div);
+    });
+    
+    if (settings.slideshow_images.length > 0) {
+        const slides = document.querySelectorAll('.slide');
+        slides[0]?.classList.add('active');
+        currentSlide = 0;
+        if (slideInterval) clearInterval(slideInterval);
+        slideInterval = setInterval(nextSlide, settings.slide_speed * 1000);
+    }
+    
+    // Kockice
+    const sideButtons = document.getElementById('sideButtons');
+    sideButtons.innerHTML = '';
+    settings.buttons.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(btn => {
+        const button = document.createElement('button');
+        button.className = 'side-btn';
+        button.textContent = `${btn.icon || ''} ${btn.label || ''}`;
+        button.onclick = () => {
+            if (btn.type === 'link') {
+                window.open(btn.link, '_blank');
+            } else {
+                handleModalAction(btn.id);
+            }
+        };
+        sideButtons.appendChild(button);
+    });
+    
+    // Meni link
+    settings.menu_link = settings.menu_link || 'https://www.babaluu.me/me/jelovnik';
+    
+    // Admin panel
+    renderAdminPanel();
+}
+
+function nextSlide() {
+    const slides = document.querySelectorAll('.slide');
+    if (slides.length === 0) return;
+    slides[currentSlide].classList.remove('active');
+    currentSlide = (currentSlide + 1) % slides.length;
+    slides[currentSlide].classList.add('active');
+}
+
+// ==================== ADMIN PANEL ====================
+function renderAdminPanel() {
+    // Slideshow slike
+    const slidesList = document.getElementById('slidesList');
+    if (!slidesList) return;
+    slidesList.innerHTML = '';
+    settings.slideshow_images.forEach((url, index) => {
+        const div = document.createElement('div');
+        div.className = 'slide-item';
+        div.innerHTML = `
+            <img src="${url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2240%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%23333%22/></svg>'">
+            <span style="flex:1;font-size:12px;word-break:break-all;">${url.substring(0, 50)}...</span>
+            <button class="admin-btn admin-btn-delete" onclick="removeSlide(${index})">✕</button>
+        `;
+        slidesList.appendChild(div);
+    });
+    
+    document.getElementById('slideSpeed').value = settings.slide_speed;
+    document.getElementById('menuLink').value = settings.menu_link;
+    document.getElementById('pinCode').value = settings.pin_code;
+    
+    // Kockice
+    const buttonsList = document.getElementById('buttonsList');
+    if (!buttonsList) return;
+    buttonsList.innerHTML = '';
+    settings.buttons.forEach((btn, index) => {
+        const div = document.createElement('div');
+        div.className = 'slide-item';
+        div.innerHTML = `
+            <span>${btn.icon || ''}</span>
+            <span style="flex:1;">${btn.label || ''}</span>
+            <button class="admin-btn admin-btn-delete" onclick="removeButton(${index})">✕</button>
+        `;
+        buttonsList.appendChild(div);
+    });
+}
+
+function addSlide() {
+    const url = document.getElementById('newSlideUrl').value.trim();
+    if (url) {
+        settings.slideshow_images.push(url);
+        document.getElementById('newSlideUrl').value = '';
+        applySettings();
+    }
+}
+
+function removeSlide(index) {
+    settings.slideshow_images.splice(index, 1);
+    applySettings();
+}
+
+function addButton() {
+    const label = prompt('Naziv kockice:');
+    if (!label) return;
+    const icon = prompt('Emoji ikonica (npr. 📸):', '📎');
+    const link = prompt('Link (URL ili "about", "delivery", "history"):', 'https://');
+    const type = link.startsWith('http') ? 'link' : 'modal';
+    
+    settings.buttons.push({
+        id: Date.now().toString(36),
+        icon: icon || '📎',
+        label: label,
+        link: link,
+        type: type,
+        order: settings.buttons.length + 1
+    });
+    applySettings();
+}
+
+function removeButton(index) {
+    settings.buttons.splice(index, 1);
+    applySettings();
+}
+
+async function saveSettings() {
+    settings.slide_speed = parseInt(document.getElementById('slideSpeed').value) || 4;
+    settings.menu_link = document.getElementById('menuLink').value.trim();
+    settings.pin_code = document.getElementById('pinCode').value.trim();
+    
+    await saveSettingsToCloud();
+    applySettings();
+    alert('✅ Podešavanja sačuvana!');
+}
+
+// ==================== KIOSK MOD ====================
 function showPinDialog() {
     document.getElementById('pinDialog').classList.add('active');
     document.getElementById('pinInput').value = '';
     setTimeout(() => document.getElementById('pinInput').focus(), 300);
 }
+
 function hidePinDialog() {
     document.getElementById('pinDialog').classList.remove('active');
 }
+
 function checkPin() {
     const pin = document.getElementById('pinInput').value;
-    if (pin === PIN_CODE) {
+    if (pin === settings.pin_code) {
         hidePinDialog();
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-        } else {
-            // Ako nije fullscreen, otvori admin panel (privremeno)
-            toggleAdmin();
-        }
+        toggleAdmin();
     } else {
         alert('Pogrešan PIN!');
         document.getElementById('pinInput').value = '';
     }
 }
 
-// Blokade
-document.addEventListener('contextmenu', e => e.preventDefault());
-document.addEventListener('keydown', e => {
-    if (['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault();
-});
-// Spreči swipe back
-document.addEventListener('touchmove', e => { if(!e.target.closest('input, iframe')) e.preventDefault(); }, {passive: false});
+function toggleAdmin() {
+    document.getElementById('adminPanel').classList.toggle('active');
+}
 
-// Fullscreen pri startu
-window.addEventListener('load', () => {
-    document.documentElement.requestFullscreen().catch(() => {});
-});
+// ==================== MENI ====================
+function openMenu() {
+    document.getElementById('menuIframe').src = settings.menu_link;
+    document.getElementById('menuModal').classList.add('active');
+}
 
-// ==================== SLIDESHOW ====================
-// Pouzdane slike preko data URI-ja – garantovano rade na svakom browseru.
-// Kasnije ćemo ih zameniti pravim URL-ovima iz Supabase baze.
-const SLIDES = [
-    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"%3E%3Crect width="100%25" height="100%25" fill="%23e94560"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="60" fill="white"%3EBabaluu Kiosk%3C/text%3E%3C/svg%3E',
-    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"%3E%3Crect width="100%25" height="100%25" fill="%2328a745"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="60" fill="white"%3EDobrodošli!%3C/text%3E%3C/svg%3E',
-    'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080"%3E%3Crect width="100%25" height="100%25" fill="%23ffc107"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="60" fill="black"%3ESpecijaliteti%3C/text%3E%3C/svg%3E'
-];
-const slideshow = document.getElementById('slideshow');
-SLIDES.forEach(url => {
-    const div = document.createElement('div');
-    div.className = 'slide';
-    div.style.backgroundImage = `url(${url})`;
-    slideshow.appendChild(div);
-});
-let currentSlide = 0;
-const slideDivs = document.querySelectorAll('.slide');
-if (slideDivs.length > 0) {
-    slideDivs[0].classList.add('active');
+function closeMenu() {
+    document.getElementById('menuModal').classList.remove('active');
+    document.getElementById('menuIframe').src = 'about:blank';
+}
+
+// ==================== MODALNE AKCIJE ====================
+function handleModalAction(id) {
+    const btn = settings.buttons.find(b => b.id === id);
+    if (!btn) return;
+    
+    switch(btn.link) {
+        case 'about':
+            alert('O nama - ovde će ići poseban modal');
+            break;
+        case 'delivery':
+            alert('Dostava - ovde će ići poseban modal');
+            break;
+        case 'history':
+            alert('Istorija Budve - ovde će ići poseban modal');
+            break;
+        default:
+            window.open(btn.link, '_blank');
+    }
+}
+
+// ==================== INICIJALIZACIJA ====================
+async function init() {
+    await loadSettings();
+    subscribeToChanges();
+    
+    // Logo klik za admin
+    document.getElementById('logo').addEventListener('click', () => {
+        logoClicks++;
+        if (logoClicks >= 5) {
+            logoClicks = 0;
+            showPinDialog();
+        }
+        setTimeout(() => { logoClicks = 0; }, 2000);
+    });
+    
+    // Sat
     setInterval(() => {
-        slideDivs[currentSlide].classList.remove('active');
-        currentSlide = (currentSlide + 1) % slideDivs.length;
-        slideDivs[currentSlide].classList.add('active');
-    }, 4000);
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString('sr', {hour:'2-digit', minute:'2-digit'});
+    }, 1000);
+    
+    // Vreme
+    fetchWeather();
+    setInterval(fetchWeather, 600000);
+    
+    // Blokade
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+        if (['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault();
+    });
+    document.addEventListener('touchmove', e => {
+        if (!e.target.closest('input, iframe, .admin-panel')) e.preventDefault();
+    }, {passive: false});
+    
+    // Fullscreen
+    document.documentElement.requestFullscreen().catch(() => {});
 }
 
-// ==================== SAT ====================
-function updateClock() {
-    const now = new Date();
-    document.getElementById('clock').textContent = now.toLocaleTimeString('sr', {hour:'2-digit', minute:'2-digit'});
-}
-setInterval(updateClock, 1000);
-updateClock();
-
-// ==================== VREME ====================
 async function fetchWeather() {
     try {
         const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=Budva,ME&units=metric&appid=bd5e378503939ddaee76f1e1e4f8c4b2&lang=sr');
@@ -207,28 +427,8 @@ async function fetchWeather() {
         }
     } catch(e) {}
 }
-fetchWeather();
-setInterval(fetchWeather, 600000);
 
-// ==================== MENI ====================
-function openMenu() {
-    document.getElementById('menuIframe').src = 'https://www.babaluu.me/me/jelovnik';
-    document.getElementById('menuModal').classList.add('active');
-}
-function closeMenu() {
-    document.getElementById('menuModal').classList.remove('active');
-    document.getElementById('menuIframe').src = 'about:blank';
-}
-
-// ==================== PLACEHOLDER FUNKCIJE ====================
-function showAbout() { alert('O nama'); }
-function showDelivery() { alert('Dostava'); }
-function showHistory() { alert('Istorija Budve'); }
-
-// ==================== ADMIN PANEL (placeholder) ====================
-function toggleAdmin() {
-    document.getElementById('adminPanel').classList.toggle('active');
-}
+window.addEventListener('load', init);
 </script>
 </body>
 </html>
