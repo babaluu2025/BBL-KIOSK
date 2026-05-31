@@ -293,29 +293,17 @@ function checkPin() { if(document.getElementById('pinInput').value===settings.pi
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
 function openLink(url) {
-    if (!url || url === 'meni') url = settings.menu_link;
-    if (!url) return;
-
-    const externalSites = [
-        'instagram.com',
-        'facebook.com',
-        'tiktok.com',
-        'youtube.com'
-    ];
-
-    const isExternal = externalSites.some(site =>
-        url.toLowerCase().includes(site)
-    );
-
-    if (isExternal) {
-        window.open(url, '_blank');
-        return;
+    if (!url || url === 'meni') {
+        url = settings.menu_link;
     }
 
-    document.getElementById('fullIframe').src = url;
-    document.getElementById('fullFrame').classList.add('active');
-}
+    if (!url) return;
 
+    console.log("OTVARAM:", url);
+
+    document.getElementById('fullFrame').classList.add('active');
+    document.getElementById('fullIframe').src = url;
+}
 function closeFrame() {
     document.getElementById('fullFrame').classList.remove('active');
     document.getElementById('fullIframe').src = 'about:blank';
