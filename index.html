@@ -39,11 +39,6 @@
         .pin-input { font-size:36px; text-align:center; width:180px; padding:12px; border-radius:12px; border:2px solid #e94560; background:#1a1a2e; color:#fff; letter-spacing:8px; }
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
 
-        .menu-modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:100; display:none; }
-        .menu-modal.active { display:block; }
-        .menu-modal iframe { width:100%; height:100%; border:none; }
-        .modal-close { position:absolute; top:15px; right:20px; width:50px; height:50px; border-radius:50%; background:#e94560; color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:101; border:none; }
-
         .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
         .admin-toggle { position:absolute; left:-50px; top:20px; width:50px; height:50px; background:#e94560; border-radius:10px 0 0 10px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:24px; }
@@ -56,6 +51,11 @@
         .admin-btn-add { background:#17a2b8; color:#fff; }
         .slide-item { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
         .slide-item img { width:60px; height:40px; object-fit:cover; border-radius:5px; }
+
+        @media (max-width: 768px) {
+            .admin-panel { width:100%; }
+            .admin-toggle { left:-40px; top:10px; width:40px; height:40px; }
+        }
     </style>
 </head>
 <body>
@@ -88,11 +88,6 @@
     <input type="password" class="pin-input" id="pinInput" maxlength="4" inputmode="numeric">
     <button class="pin-btn" onclick="checkPin()">Potvrdi</button>
     <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="hidePinDialog()">Odustani</button>
-</div>
-
-<div class="menu-modal" id="menuModal">
-    <button class="modal-close" onclick="closeMenu()">✕</button>
-    <iframe id="menuIframe" src="about:blank"></iframe>
 </div>
 
 <div class="admin-panel" id="adminPanel">
@@ -147,6 +142,7 @@ let settings = {
 let currentSlide = 0;
 let slideInterval = null;
 let logoClicks = 0;
+let pinDialogVisible = false;
 
 // ==================== CLOUD FUNKCIJE ====================
 async function loadSettings() {
@@ -158,6 +154,8 @@ async function loadSettings() {
     
     if (data) {
         settings = data;
+        // Ako iz baze nedostaje pin_code, postavljamo default
+        if (!settings.pin_code) settings.pin_code = '0987';
         applySettings();
     }
 }
@@ -181,6 +179,7 @@ function subscribeToChanges() {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'kiosk_settings' }, (payload) => {
             if (payload.new && payload.new.id === 1) {
                 settings = payload.new;
+                if (!settings.pin_code) settings.pin_code = '0987';
                 applySettings();
             }
         })
@@ -224,10 +223,10 @@ function applySettings() {
         sideButtons.appendChild(button);
     });
     
-    // Meni link
+    // Meni link (čuvamo ga, koristi se u openMenu)
     settings.menu_link = settings.menu_link || 'https://www.babaluu.me/me/jelovnik';
     
-    // Admin panel
+    // Admin panel osvežavanje
     renderAdminPanel();
 }
 
@@ -241,7 +240,6 @@ function nextSlide() {
 
 // ==================== ADMIN PANEL ====================
 function renderAdminPanel() {
-    // Slideshow slike
     const slidesList = document.getElementById('slidesList');
     if (!slidesList) return;
     slidesList.innerHTML = '';
@@ -260,7 +258,6 @@ function renderAdminPanel() {
     document.getElementById('menuLink').value = settings.menu_link;
     document.getElementById('pinCode').value = settings.pin_code;
     
-    // Kockice
     const buttonsList = document.getElementById('buttonsList');
     if (!buttonsList) return;
     buttonsList.innerHTML = '';
@@ -316,7 +313,7 @@ function removeButton(index) {
 async function saveSettings() {
     settings.slide_speed = parseInt(document.getElementById('slideSpeed').value) || 4;
     settings.menu_link = document.getElementById('menuLink').value.trim();
-    settings.pin_code = document.getElementById('pinCode').value.trim();
+    settings.pin_code = document.getElementById('pinCode').value.trim() || '0987';
     
     await saveSettingsToCloud();
     applySettings();
@@ -327,11 +324,13 @@ async function saveSettings() {
 function showPinDialog() {
     document.getElementById('pinDialog').classList.add('active');
     document.getElementById('pinInput').value = '';
+    pinDialogVisible = true;
     setTimeout(() => document.getElementById('pinInput').focus(), 300);
 }
 
 function hidePinDialog() {
     document.getElementById('pinDialog').classList.remove('active');
+    pinDialogVisible = false;
 }
 
 function checkPin() {
@@ -351,13 +350,8 @@ function toggleAdmin() {
 
 // ==================== MENI ====================
 function openMenu() {
-    document.getElementById('menuIframe').src = settings.menu_link;
-    document.getElementById('menuModal').classList.add('active');
-}
-
-function closeMenu() {
-    document.getElementById('menuModal').classList.remove('active');
-    document.getElementById('menuIframe').src = 'about:blank';
+    // Otvaranje u novom tabu/prozoru da se izbegne X-Frame-Options
+    window.open(settings.menu_link, '_blank');
 }
 
 // ==================== MODALNE AKCIJE ====================
@@ -385,12 +379,14 @@ async function init() {
     await loadSettings();
     subscribeToChanges();
     
-    // Logo klik za admin
+    // Logo klik za admin – 5 klikova otvara admin direktno (bez PIN)
     document.getElementById('logo').addEventListener('click', () => {
         logoClicks++;
         if (logoClicks >= 5) {
             logoClicks = 0;
-            showPinDialog();
+            // Admin otvaramo direktno, ali i dalje možemo tražiti PIN ako želimo dodatnu sigurnost
+            // Sada otvaramo admin bez PIN-a za jednostavnost (možete vratiti showPinDialog ako želite PIN)
+            toggleAdmin();
         }
         setTimeout(() => { logoClicks = 0; }, 2000);
     });
@@ -411,7 +407,7 @@ async function init() {
         if (['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault();
     });
     document.addEventListener('touchmove', e => {
-        if (!e.target.closest('input, iframe, .admin-panel')) e.preventDefault();
+        if (!e.target.closest('input, .admin-panel')) e.preventDefault();
     }, {passive: false});
     
     // Fullscreen
