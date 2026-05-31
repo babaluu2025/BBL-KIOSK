@@ -41,11 +41,21 @@
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
         .pin-cancel { background:none; border:none; color:#aaa; font-size:16px; cursor:pointer; }
 
-        /* Meni se otvara u iframe-u preko celog ekrana */
+        /* IFrame preko celog ekrana */
         .fullscreen-iframe { position:fixed; top:0; left:0; width:100%; height:100%; z-index:300; display:none; }
         .fullscreen-iframe.active { display:block; }
         .fullscreen-iframe iframe { width:100%; height:100%; border:none; }
-        .iframe-close { position:absolute; top:20px; right:20px; width:50px; height:50px; border-radius:50%; background:#e94560; color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:301; border:none; }
+
+        /* Strelica Nazad – vidljiva samo kad je iframe aktivan */
+        .back-arrow { 
+            position:fixed; top:20px; left:20px; 
+            width:60px; height:60px; border-radius:50%; 
+            background:rgba(233,69,96,0.9); color:#fff; 
+            display:none; align-items:center; justify-content:center; 
+            font-size:32px; cursor:pointer; z-index:400; 
+            border:none; font-weight:bold;
+        }
+        .back-arrow.visible { display:flex; }
 
         .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
@@ -56,6 +66,7 @@
         .admin-btn { padding:10px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:bold; margin:2px; }
         .admin-btn-save { background:#28a745; color:#fff; }
         .admin-btn-delete { background:#dc3545; color:#fff; }
+        .admin-btn-edit { background:#ffc107; color:#000; }
         .admin-btn-add { background:#17a2b8; color:#fff; }
         .slide-item { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
         .slide-item img { width:60px; height:40px; object-fit:cover; border-radius:5px; }
@@ -83,7 +94,7 @@
 
     <div class="side-buttons" id="sideButtons"></div>
 
-    <button class="menu-btn" id="menuBtn" onclick="openLinkInFrame(settings.menu_link)">🍽 Pritisni za meni</button>
+    <button class="menu-btn" id="menuBtn" onclick="openLink('meni')">🍽 Pritisni za meni</button>
 </div>
 
 <div class="pin-dialog" id="pinDialog">
@@ -93,8 +104,11 @@
     <button class="pin-cancel" onclick="hidePinDialog()">Odustani</button>
 </div>
 
+<!-- Strelica Nazad -->
+<button class="back-arrow" id="backArrow" onclick="closeFrame()">←</button>
+
+<!-- IFrame -->
 <div class="fullscreen-iframe" id="fullFrame">
-    <button class="iframe-close" onclick="closeFrame()">✕</button>
     <iframe id="fullIframe" src="about:blank"></iframe>
 </div>
 
@@ -170,14 +184,12 @@ let logoClicks = 0;
 // ==================== CLOUD FUNKCIJE ====================
 async function loadFromCloud() {
     try {
-        console.log('🔄 Učitavam iz oblaka...');
         const { data, error } = await db
             .from('kiosk_settings')
             .select('*')
             .eq('id', 1)
             .single();
         if (data) {
-            console.log('✅ Podaci iz oblaka:', data);
             settings = {
                 slideshow_images: data.slideshow_images || DEFAULT_SETTINGS.slideshow_images,
                 slide_speed: data.slide_speed || DEFAULT_SETTINGS.slide_speed,
@@ -186,92 +198,60 @@ async function loadFromCloud() {
                 pin_code: data.pin_code || DEFAULT_SETTINGS.pin_code
             };
         }
-    } catch(e) {
-        console.warn('⚠️ Greška pri učitavanju iz oblaka:', e);
-    }
+    } catch(e) { console.warn(e); }
     applySettings();
 }
 
 async function saveToCloud() {
     try {
-        await db
-            .from('kiosk_settings')
-            .upsert({
-                id: 1,
-                slideshow_images: settings.slideshow_images,
-                slide_speed: settings.slide_speed,
-                buttons: settings.buttons,
-                menu_link: settings.menu_link,
-                pin_code: settings.pin_code
-            });
-        console.log('💾 Sačuvano u oblaku');
-    } catch(e) {
-        console.warn('⚠️ Greška pri čuvanju u oblaku:', e);
-    }
+        await db.from('kiosk_settings').upsert({
+            id: 1,
+            slideshow_images: settings.slideshow_images,
+            slide_speed: settings.slide_speed,
+            buttons: settings.buttons,
+            menu_link: settings.menu_link,
+            pin_code: settings.pin_code
+        });
+    } catch(e) { console.warn(e); }
 }
 
 // ==================== PRIMENI PODEŠAVANJA ====================
 function applySettings() {
-    console.log('🎨 applySettings pozvano');
-    // Slideshow
     const slideshow = document.getElementById('slideshow');
     if (slideshow) {
         slideshow.innerHTML = '';
-        if (settings.slideshow_images && settings.slideshow_images.length > 0) {
-            settings.slideshow_images.forEach(url => {
-                const div = document.createElement('div');
-                div.className = 'slide';
-                div.style.backgroundImage = `url(${url})`;
-                slideshow.appendChild(div);
-            });
-            const slides = document.querySelectorAll('.slide');
-            if (slides.length > 0) {
-                slides[0].classList.add('active');
-                currentSlide = 0;
-                if (slideInterval) clearInterval(slideInterval);
-                slideInterval = setInterval(nextSlide, (settings.slide_speed || 4) * 1000);
-            }
+        settings.slideshow_images.forEach(url => {
+            const div = document.createElement('div');
+            div.className = 'slide';
+            div.style.backgroundImage = `url(${url})`;
+            slideshow.appendChild(div);
+        });
+        const slides = document.querySelectorAll('.slide');
+        if (slides.length > 0) {
+            slides[0].classList.add('active');
+            currentSlide = 0;
+            if (slideInterval) clearInterval(slideInterval);
+            slideInterval = setInterval(nextSlide, (settings.slide_speed || 4) * 1000);
         }
     }
 
-    // Kockice
     const sideButtons = document.getElementById('sideButtons');
-    if (!sideButtons) {
-        console.error('❌ #sideButtons nije pronađen!');
-        return;
+    if (sideButtons) {
+        sideButtons.innerHTML = '';
+        (settings.buttons || DEFAULT_BUTTONS).sort((a,b) => (a.order||0)-(b.order||0)).forEach(btn => {
+            const button = document.createElement('button');
+            button.className = 'side-btn';
+            button.textContent = `${btn.icon||''} ${btn.label||''}`;
+            button.onclick = () => openLink(btn.link);
+            sideButtons.appendChild(button);
+        });
     }
-    sideButtons.innerHTML = '';
-    
-    const buttons = settings.buttons || DEFAULT_BUTTONS;
-    console.log('🔘 Prikazujem kockice:', buttons);
-    
-    if (!Array.isArray(buttons)) {
-        console.error('❌ buttons nije niz!', buttons);
-        return;
-    }
-    
-    buttons.sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(btn => {
-        const button = document.createElement('button');
-        button.className = 'side-btn';
-        button.textContent = `${btn.icon || ''} ${btn.label || ''}`;
-        button.onclick = () => {
-            if (btn.type === 'link') {
-                openLinkInFrame(btn.link);
-            } else {
-                alert(`${btn.label}: funkcionalnost u izradi`);
-            }
-        };
-        sideButtons.appendChild(button);
-    });
-    console.log('✅ Kockice dodate, broj:', sideButtons.children.length);
-    
-    // Admin panel (osveži ako je otvoren)
     renderAdminPanel();
 }
 
 function nextSlide() {
     const slides = document.querySelectorAll('.slide');
-    if (slides.length === 0) return;
+    if (!slides.length) return;
     slides[currentSlide].classList.remove('active');
     currentSlide = (currentSlide + 1) % slides.length;
     slides[currentSlide].classList.add('active');
@@ -282,39 +262,31 @@ function renderAdminPanel() {
     const slidesList = document.getElementById('slidesList');
     if (slidesList) {
         slidesList.innerHTML = '';
-        (settings.slideshow_images || []).forEach((url, index) => {
+        (settings.slideshow_images || []).forEach((url, i) => {
             const div = document.createElement('div');
             div.className = 'slide-item';
             div.innerHTML = `
                 <img src="${url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2240%22><rect width=%22100%25%22 height=%22100%25%22 fill=%22%23333%22/></svg>'">
-                <span style="flex:1;font-size:12px;word-break:break-all;">${url.substring(0, 50)}...</span>
-                <button class="admin-btn admin-btn-delete" onclick="removeSlide(${index})">✕</button>
-            `;
+                <span style="flex:1;font-size:12px;">${url.substring(0,50)}...</span>
+                <button class="admin-btn admin-btn-delete" onclick="removeSlide(${i})">✕</button>`;
             slidesList.appendChild(div);
         });
     }
-    
-    const speedInput = document.getElementById('slideSpeed');
-    if (speedInput) speedInput.value = settings.slide_speed || 4;
-    
-    const menuInput = document.getElementById('menuLink');
-    if (menuInput) menuInput.value = settings.menu_link || '';
-    
-    const pinInput = document.getElementById('pinCode');
-    if (pinInput) pinInput.value = settings.pin_code || '';
-    
+    document.getElementById('slideSpeed').value = settings.slide_speed || 4;
+    document.getElementById('menuLink').value = settings.menu_link || '';
+    document.getElementById('pinCode').value = settings.pin_code || '';
+
     const buttonsList = document.getElementById('buttonsList');
     if (buttonsList) {
         buttonsList.innerHTML = '';
-        (settings.buttons || []).forEach((btn, index) => {
+        (settings.buttons || []).forEach((btn, i) => {
             const div = document.createElement('div');
             div.className = 'slide-item';
             div.innerHTML = `
-                <span>${btn.icon || ''}</span>
-                <span style="flex:1;">${btn.label || ''}</span>
-                <span style="font-size:10px;color:#aaa;">${btn.link.substring(0, 30)}...</span>
-                <button class="admin-btn admin-btn-delete" onclick="removeButton(${index})">✕</button>
-            `;
+                <span>${btn.icon||''}</span>
+                <span style="flex:1;font-size:14px;">${btn.label||''}</span>
+                <button class="admin-btn admin-btn-edit" onclick="editButton(${i})">✏️</button>
+                <button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>`;
             buttonsList.appendChild(div);
         });
     }
@@ -322,143 +294,90 @@ function renderAdminPanel() {
 
 function addSlide() {
     const url = document.getElementById('newSlideUrl').value.trim();
-    if (url) {
-        settings.slideshow_images = settings.slideshow_images || [];
-        settings.slideshow_images.push(url);
-        document.getElementById('newSlideUrl').value = '';
-        applySettings();
-    }
+    if (url) { settings.slideshow_images.push(url); document.getElementById('newSlideUrl').value=''; applySettings(); }
 }
-
-function removeSlide(index) {
-    settings.slideshow_images.splice(index, 1);
-    applySettings();
-}
+function removeSlide(i) { settings.slideshow_images.splice(i,1); applySettings(); }
 
 function addButton() {
-    const label = prompt('Naziv kockice:');
-    if (!label) return;
-    const icon = prompt('Emoji ikonica (npr. 📸):', '📎');
-    const link = prompt('Unesite URL (npr. https://www.instagram.com/...):', 'https://');
+    const label = prompt('Naziv:'); if (!label) return;
+    const icon = prompt('Ikona (📸):', '📎');
+    const link = prompt('URL:', 'https://');
     if (!link) return;
-    
-    settings.buttons = settings.buttons || [];
-    settings.buttons.push({
-        id: Date.now().toString(36),
-        icon: icon || '📎',
-        label: label,
-        link: link,
-        type: 'link',
-        order: settings.buttons.length + 1
-    });
+    settings.buttons.push({ id: Date.now().toString(36), icon: icon||'📎', label, link, type:'link', order: settings.buttons.length+1 });
     applySettings();
 }
-
-function removeButton(index) {
-    settings.buttons.splice(index, 1);
+function editButton(i) {
+    const btn = settings.buttons[i];
+    const label = prompt('Naziv:', btn.label); if (label===null) return;
+    const icon = prompt('Ikona:', btn.icon); if (icon===null) return;
+    const link = prompt('URL:', btn.link); if (link===null) return;
+    settings.buttons[i] = {...btn, label, icon, link};
     applySettings();
 }
+function removeButton(i) { settings.buttons.splice(i,1); applySettings(); }
 
 async function saveSettings() {
     settings.slide_speed = parseInt(document.getElementById('slideSpeed').value) || 4;
     settings.menu_link = document.getElementById('menuLink').value.trim();
     settings.pin_code = document.getElementById('pinCode').value.trim() || '0987';
-    
     await saveToCloud();
     applySettings();
-    alert('✅ Podešavanja sačuvana!');
+    alert('✅ Sačuvano!');
 }
 
 // ==================== KIOSK MOD ====================
-function showPinDialog() {
-    document.getElementById('pinDialog').classList.add('active');
-    document.getElementById('pinInput').value = '';
-    setTimeout(() => document.getElementById('pinInput').focus(), 300);
-}
-
-function hidePinDialog() {
-    document.getElementById('pinDialog').classList.remove('active');
-}
-
+function showPinDialog() { document.getElementById('pinDialog').classList.add('active'); document.getElementById('pinInput').value=''; setTimeout(()=>document.getElementById('pinInput').focus(),300); }
+function hidePinDialog() { document.getElementById('pinDialog').classList.remove('active'); }
 function checkPin() {
-    const pin = document.getElementById('pinInput').value;
-    if (pin === settings.pin_code) {
-        hidePinDialog();
-        toggleAdmin();
-    } else {
-        alert('Pogrešan PIN!');
-        document.getElementById('pinInput').value = '';
-    }
+    if (document.getElementById('pinInput').value === settings.pin_code) { hidePinDialog(); toggleAdmin(); }
+    else { alert('Pogrešan PIN!'); document.getElementById('pinInput').value=''; }
 }
+function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); }
 
-function toggleAdmin() {
-    document.getElementById('adminPanel').classList.toggle('active');
-}
-
-// ==================== MENI I LINKOVI U IFRAME-U ====================
-function openLinkInFrame(url) {
-    if (!url) return;
+// ==================== MENI I LINKOVI (IFRAME SA STRELICOM) ====================
+function openLink(url) {
+    // Ako je url prazan ili nepoznat, koristi meni link
+    if (!url || url === 'meni') url = settings.menu_link;
     document.getElementById('fullIframe').src = url;
     document.getElementById('fullFrame').classList.add('active');
+    document.getElementById('backArrow').classList.add('visible');
 }
 
 function closeFrame() {
     document.getElementById('fullFrame').classList.remove('active');
     document.getElementById('fullIframe').src = 'about:blank';
+    document.getElementById('backArrow').classList.remove('visible');
 }
 
 // ==================== INICIJALIZACIJA ====================
 async function init() {
-    console.log('⚡ Inicijalizacija...');
-    
     applySettings();
     await loadFromCloud();
     renderAdminPanel();
-    
-    // Logo klik – otvori PIN dijalog (5 klikova)
+
     document.getElementById('logo').addEventListener('click', () => {
         logoClicks++;
-        console.log(`Logo klik ${logoClicks}/5`);
-        if (logoClicks >= 5) {
-            logoClicks = 0;
-            showPinDialog();
-        }
-        setTimeout(() => { logoClicks = 0; }, 2000);
+        if (logoClicks >= 5) { logoClicks=0; showPinDialog(); }
+        setTimeout(()=>{logoClicks=0;},2000);
     });
-    
-    // Sat
-    setInterval(() => {
-        const now = new Date();
-        const clockEl = document.getElementById('clock');
-        if (clockEl) clockEl.textContent = now.toLocaleTimeString('sr', {hour:'2-digit', minute:'2-digit'});
-    }, 1000);
-    
-    // Vreme
-    fetchWeather();
-    setInterval(fetchWeather, 600000);
-    
-    // Blokade
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => {
-        if (['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault();
-    });
-    document.addEventListener('touchmove', e => {
-        if (!e.target.closest('input, .admin-panel, iframe')) e.preventDefault();
-    }, {passive: false});
-    
-    document.documentElement.requestFullscreen?.().catch(() => {});
-    
-    console.log('✅ Inicijalizacija završena');
+
+    setInterval(()=>{
+        document.getElementById('clock').textContent = new Date().toLocaleTimeString('sr',{hour:'2-digit',minute:'2-digit'});
+    },1000);
+
+    fetchWeather(); setInterval(fetchWeather,600000);
+
+    document.addEventListener('contextmenu', e=>e.preventDefault());
+    document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
+    document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,iframe')) e.preventDefault(); },{passive:false});
+    document.documentElement.requestFullscreen?.().catch(()=>{});
 }
 
 async function fetchWeather() {
     try {
         const res = await fetch('https://api.openweathermap.org/data/2.5/weather?q=Budva,ME&units=metric&appid=bd5e378503939ddaee76f1e1e4f8c4b2&lang=sr');
         const data = await res.json();
-        if (data.main) {
-            const weatherEl = document.getElementById('weather');
-            if (weatherEl) weatherEl.innerHTML = `🌤 ${Math.round(data.main.temp)}°C`;
-        }
+        if (data.main) document.getElementById('weather').innerHTML = `🌤 ${Math.round(data.main.temp)}°C`;
     } catch(e) {}
 }
 
