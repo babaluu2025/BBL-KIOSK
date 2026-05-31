@@ -292,13 +292,10 @@ function hidePinDialog() { document.getElementById('pinDialog').classList.remove
 function checkPin() { if(document.getElementById('pinInput').value===settings.pin_code){hidePinDialog();toggleAdmin();} else alert('Pogrešan PIN!'); }
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
-// ==================== NAŠ PROXY ====================
 function openLink(url) {
     if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
-    
-    // Koristimo naš Vercel proxy (api/proxy.js)
-    const proxyUrl = '/api/proxy?url=' + encodeURIComponent(url);
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
     document.getElementById('fullIframe').src = proxyUrl;
     document.getElementById('fullFrame').classList.add('active');
 }
