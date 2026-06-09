@@ -40,11 +40,6 @@
         .pin-input { font-size:36px; text-align:center; width:180px; padding:12px; border-radius:12px; border:2px solid #e94560; background:#1a1a2e; color:#fff; letter-spacing:8px; }
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
 
-        .fullscreen-iframe { position:fixed; top:0; left:0; width:100%; height:100%; z-index:300; display:none; }
-        .fullscreen-iframe.active { display:block; }
-        .fullscreen-iframe iframe { width:100%; height:100%; border:none; }
-        .back-arrow { position:absolute; top:20px; left:20px; width:60px; height:60px; border-radius:50%; background:rgba(233,69,96,0.9); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; cursor:pointer; z-index:301; border:none; }
-
         .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
         .admin-toggle { position:absolute; left:-50px; top:20px; width:50px; height:50px; background:#e94560; border-radius:10px 0 0 10px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:24px; }
@@ -83,7 +78,7 @@
 
     <div class="side-buttons" id="sideButtons"></div>
 
-    <button class="menu-btn" id="menuBtn" onclick="openLink('meni')">🍽 Pritisni za meni</button>
+    <button class="menu-btn" id="menuBtn" onclick="window.open(settings.menu_link || 'https://www.babaluu.me/me/jelovnik', '_blank')">🍽 Pritisni za meni</button>
 </div>
 
 <div class="pin-dialog" id="pinDialog">
@@ -91,11 +86,6 @@
     <input type="password" class="pin-input" id="pinInput" maxlength="4" inputmode="numeric">
     <button class="pin-btn" onclick="checkPin()">Potvrdi</button>
     <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="hidePinDialog()">Odustani</button>
-</div>
-
-<div class="fullscreen-iframe" id="fullFrame">
-    <button class="back-arrow" onclick="closeFrame()">←</button>
-    <iframe id="fullIframe" src="about:blank"></iframe>
 </div>
 
 <div class="admin-panel" id="adminPanel">
@@ -216,13 +206,7 @@ function applySettings() {
             const button = document.createElement('button');
             button.className = 'side-btn';
             button.textContent = `${btn.icon||''} ${btn.label||''}`;
-            button.onclick = () => {
-                if (btn.id === '1') {
-                    window.open(btn.link, '_blank');
-                } else {
-                    openLink(btn.link);
-                }
-            };
+            button.onclick = () => window.open(btn.link, '_blank');
             sideButtons.appendChild(button);
         });
     }
@@ -298,19 +282,6 @@ function hidePinDialog() { document.getElementById('pinDialog').classList.remove
 function checkPin() { if(document.getElementById('pinInput').value===settings.pin_code){hidePinDialog();toggleAdmin();} else alert('Pogrešan PIN!'); }
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
-function openLink(url) {
-    if (!url || url === 'meni') url = settings.menu_link;
-    if (!url) return;
-    const proxyUrl = '/api/proxy?url=' + encodeURIComponent(url);
-    document.getElementById('fullIframe').src = proxyUrl;
-    document.getElementById('fullFrame').classList.add('active');
-}
-
-function closeFrame() {
-    document.getElementById('fullFrame').classList.remove('active');
-    document.getElementById('fullIframe').src = 'about:blank';
-}
-
 async function init() {
     await loadSettings();
     applySettings();
@@ -338,7 +309,7 @@ async function init() {
 
     document.addEventListener('contextmenu', e=>e.preventDefault());
     document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
-    document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,iframe')) e.preventDefault(); },{passive:false});
+    document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel')) e.preventDefault(); },{passive:false});
 
     document.body.addEventListener('click', function requestFullscreenOnce() {
         document.documentElement.requestFullscreen?.().catch(()=>{});
