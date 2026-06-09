@@ -216,7 +216,13 @@ function applySettings() {
             const button = document.createElement('button');
             button.className = 'side-btn';
             button.textContent = `${btn.icon||''} ${btn.label||''}`;
-            button.onclick = () => openLink(btn.link);
+            button.onclick = () => {
+                if (btn.id === '1') {
+                    window.open(btn.link, '_blank');
+                } else {
+                    openLink(btn.link);
+                }
+            };
             sideButtons.appendChild(button);
         });
     }
@@ -293,33 +299,18 @@ function checkPin() { if(document.getElementById('pinInput').value===settings.pi
 function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
 
 function openLink(url) {
-    if (!url || url === 'meni') {
-        url = settings.menu_link;
-    }
-
+    if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
-
-    const isExternal =
-        url.includes('instagram.com') ||
-        url.includes('facebook.com') ||
-        url.includes('tiktok.com') ||
-        url.includes('youtube.com') ||
-        url.includes('http');
-
-    // 👉 Instagram i društvene mreže → VAN
-    if (
-        url.includes('instagram.com') ||
-        url.includes('facebook.com') ||
-        url.includes('tiktok.com')
-    ) {
-        window.location.href = url;   // ili window.open(url)
-        return;
-    }
-
-    // 👉 ostalo u kiosk iframe
-    document.getElementById('fullIframe').src = url;
+    const proxyUrl = '/api/proxy?url=' + encodeURIComponent(url);
+    document.getElementById('fullIframe').src = proxyUrl;
     document.getElementById('fullFrame').classList.add('active');
 }
+
+function closeFrame() {
+    document.getElementById('fullFrame').classList.remove('active');
+    document.getElementById('fullIframe').src = 'about:blank';
+}
+
 async function init() {
     await loadSettings();
     applySettings();
