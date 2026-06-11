@@ -40,22 +40,10 @@
         .pin-input { font-size:36px; text-align:center; width:180px; padding:12px; border-radius:12px; border:2px solid #e94560; background:#1a1a2e; color:#fff; letter-spacing:8px; }
         .pin-btn { padding:14px 30px; font-size:20px; border-radius:12px; background:#e94560; color:#fff; border:none; cursor:pointer; font-weight:bold; }
 
-        /* MENI MODAL */
-        .menu-modal { position:fixed; top:0; left:0; width:100%; height:100%; z-index:500; display:none; background:rgba(0,0,0,0.95); flex-direction:column; }
-        .menu-modal.active { display:flex; }
-        .menu-header { display:flex; justify-content:space-between; align-items:center; padding:20px; background:#1a1a2e; }
-        .menu-header h2 { color:#e94560; font-size:28px; }
-        .menu-close { width:50px; height:50px; border-radius:50%; background:#e94560; color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:none; }
-        .menu-categories { display:flex; gap:10px; padding:15px; overflow-x:auto; background:#111; flex-shrink:0; }
-        .cat-btn { padding:12px 24px; border-radius:25px; border:2px solid #e94560; background:transparent; color:#e94560; font-size:18px; cursor:pointer; white-space:nowrap; }
-        .cat-btn.active { background:#e94560; color:#fff; }
-        .menu-items { flex:1; overflow-y:auto; padding:20px; display:grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap:20px; }
-        .menu-item { background:#1a1a2e; border-radius:15px; overflow:hidden; border:1px solid #333; }
-        .menu-item img { width:100%; height:180px; object-fit:cover; }
-        .menu-item-info { padding:15px; }
-        .menu-item-info h3 { font-size:20px; color:#e94560; margin-bottom:5px; }
-        .menu-item-info p { color:#aaa; font-size:14px; margin-bottom:10px; }
-        .menu-item-info .price { font-size:22px; font-weight:bold; color:#fff; }
+        .fullscreen-iframe { position:fixed; top:0; left:0; width:100%; height:100%; z-index:300; display:none; }
+        .fullscreen-iframe.active { display:block; }
+        .fullscreen-iframe iframe { width:100%; height:100%; border:none; }
+        .back-arrow { position:absolute; top:20px; left:20px; width:60px; height:60px; border-radius:50%; background:rgba(233,69,96,0.9); color:#fff; display:flex; align-items:center; justify-content:center; font-size:28px; cursor:pointer; z-index:301; border:none; }
 
         .admin-panel { position:fixed; top:0; right:0; width:400px; height:100%; background:#1a1a2e; z-index:200; transform:translateX(100%); transition:0.3s; padding:20px; overflow-y:auto; color:#fff; }
         .admin-panel.active { transform:translateX(0); }
@@ -71,8 +59,6 @@
         .slide-item img { width:60px; height:40px; object-fit:cover; border-radius:5px; }
         .btn-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
         .btn-row input { flex:1; padding:8px; border-radius:6px; border:1px solid #555; background:#2a2a3e; color:#fff; }
-        .menu-item-admin { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
-        .menu-item-admin input { flex:1; padding:8px; border-radius:6px; border:1px solid #555; background:#2a2a3e; color:#fff; }
     </style>
 </head>
 <body>
@@ -97,24 +83,19 @@
 
     <div class="side-buttons" id="sideButtons"></div>
 
-    <button class="menu-btn" id="menuBtn" onclick="openMenu()">🍽 Pritisni za meni</button>
+    <button class="menu-btn" id="menuBtn" onclick="openLink('meni')">🍽 Pritisni za meni</button>
 </div>
 
 <div class="pin-dialog" id="pinDialog">
-    <div style="color:#fff;font-size:22px;">🔒 Unesite PIN za pristup adminu</div>
+    <div style="color:#fff;font-size:22px;">🔒 Unesite PIN za izlazak</div>
     <input type="password" class="pin-input" id="pinInput" maxlength="4" inputmode="numeric">
     <button class="pin-btn" onclick="checkPin()">Potvrdi</button>
     <button style="background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;" onclick="hidePinDialog()">Odustani</button>
 </div>
 
-<!-- MENI MODAL -->
-<div class="menu-modal" id="menuModal">
-    <div class="menu-header">
-        <h2>🍽 Naš jelovnik</h2>
-        <button class="menu-close" onclick="closeMenu()">←</button>
-    </div>
-    <div class="menu-categories" id="menuCategories"></div>
-    <div class="menu-items" id="menuItems"></div>
+<div class="fullscreen-iframe" id="fullFrame">
+    <button class="back-arrow" onclick="closeFrame()">←</button>
+    <iframe id="fullIframe" src="about:blank"></iframe>
 </div>
 
 <div class="admin-panel" id="adminPanel">
@@ -140,36 +121,16 @@
     </div>
     
     <div class="admin-section">
-        <h3>🍽 Jelovnik</h3>
-        <div id="menuItemsAdmin"></div>
-        <div style="display:flex;gap:5px;margin-top:10px;">
-            <input type="text" class="admin-input" id="newItemName" placeholder="Naziv jela" style="flex:2;">
-            <input type="text" class="admin-input" id="newItemPrice" placeholder="Cena" style="flex:1;">
-        </div>
-        <input type="text" class="admin-input" id="newItemDesc" placeholder="Opis">
-        <div style="display:flex;gap:5px;">
-            <input type="text" class="admin-input" id="newItemCat" placeholder="Kategorija" style="flex:1;">
-            <input type="text" class="admin-input" id="newItemImg" placeholder="URL slike" style="flex:2;">
-        </div>
-        <button class="admin-btn admin-btn-add" onclick="addMenuItem()">+ Dodaj jelo</button>
-    </div>
-    
-    <div class="admin-section">
         <h3>PIN kod</h3>
         <input type="text" class="admin-input" id="pinCode" maxlength="4">
     </div>
     
-    <button class="admin-btn admin-btn-save" onclick="saveSettings()" style="width:100%;padding:15px;font-size:18px;">💾 Sačuvaj sve</button>
+    <button class="admin-btn admin-btn-save" onclick="saveAdminSettings()" style="width:100%;padding:15px;font-size:18px;">💾 Sačuvaj sve</button>
 </div>
 
 <script>
-console.log('🚀 Aplikacija pokrenuta');
-
-const SUPABASE_URL = 'https://itoyvqqssqmeyxawvulq.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_nbUWlCIXbB48NoBRhH4ucg_PfCAmau1';
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-const DEFAULT_SETTINGS = {
+const STORAGE_KEY = 'kiosk_settings';
+const DEFAULT = {
     slideshow_images: [
         'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1920',
         'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1920',
@@ -182,279 +143,95 @@ const DEFAULT_SETTINGS = {
         {id:'3', icon:'🛵', label:'Dostava', link:'https://wolt.com/...', type:'link', order:3},
         {id:'4', icon:'🏛', label:'Istorija Budve', link:'https://www.babaluu.me/istorija-budve', type:'link', order:4}
     ],
+    menu_link: 'https://www.babaluu.me/me/jelovnik',
     pin_code: '0987'
 };
 
-let settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-let menuItems = [];
-let currentSlide = 0;
-let slideInterval = null;
-let logoClicks = 0;
+let settings = JSON.parse(localStorage.getItem(STORAGE_KEY) || JSON.stringify(DEFAULT));
+let currentSlide = 0, slideInterval, logoClicks = 0;
 
-async function loadSettings() {
-    try {
-        const { data } = await db.from('kiosk_settings').select('*').eq('id', 1).single();
-        if (data) {
-            settings = {
-                slideshow_images: data.slideshow_images || DEFAULT_SETTINGS.slideshow_images,
-                slide_speed: data.slide_speed || DEFAULT_SETTINGS.slide_speed,
-                buttons: (data.buttons && data.buttons.length > 0) ? data.buttons : DEFAULT_SETTINGS.buttons,
-                pin_code: data.pin_code || DEFAULT_SETTINGS.pin_code
-            };
-        }
-    } catch(e) {}
-}
-
-async function loadMenuItems() {
-    try {
-        const { data } = await db.from('menu_items').select('*').order('sort_order');
-        if (data) menuItems = data;
-    } catch(e) {}
-}
-
-async function saveSettingsToCloud() {
-    try {
-        await db.from('kiosk_settings').upsert({
-            id: 1,
-            slideshow_images: settings.slideshow_images,
-            slide_speed: settings.slide_speed,
-            buttons: settings.buttons,
-            pin_code: settings.pin_code
-        });
-    } catch(e) {}
-}
-
-function applySettings() {
-    const slideshow = document.getElementById('slideshow');
-    if (slideshow) {
-        slideshow.innerHTML = '';
-        settings.slideshow_images.forEach(url => {
-            const div = document.createElement('div');
-            div.className = 'slide';
-            div.style.backgroundImage = `url(${url})`;
-            slideshow.appendChild(div);
-        });
-        const slides = document.querySelectorAll('.slide');
-        if (slides.length > 0) {
-            slides[0].classList.add('active');
-            currentSlide = 0;
-            if (slideInterval) clearInterval(slideInterval);
-            slideInterval = setInterval(nextSlide, (settings.slide_speed || 4) * 1000);
-        }
-    }
-
-    const sideButtons = document.getElementById('sideButtons');
-    if (sideButtons) {
-        sideButtons.innerHTML = '';
-        (settings.buttons || []).sort((a,b) => (a.order||0)-(b.order||0)).forEach(btn => {
-            const button = document.createElement('button');
-            button.className = 'side-btn';
-            button.textContent = `${btn.icon||''} ${btn.label||''}`;
-            button.onclick = () => window.open(btn.link, '_blank');
-            sideButtons.appendChild(button);
-        });
-    }
-}
-
-function nextSlide() {
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); }
+function apply() {
+    const s = document.getElementById('slideshow');
+    s.innerHTML = '';
+    settings.slideshow_images.forEach(u => {
+        let d = document.createElement('div'); d.className='slide'; d.style.backgroundImage=`url(${u})`; s.appendChild(d);
+    });
     const slides = document.querySelectorAll('.slide');
-    if (!slides.length) return;
-    slides[currentSlide].classList.remove('active');
-    currentSlide = (currentSlide + 1) % slides.length;
-    slides[currentSlide].classList.add('active');
-}
-
-// ==================== MENI ====================
-function openMenu() {
-    const categories = [...new Set(menuItems.map(item => item.category || 'Ostalo'))];
-    const catContainer = document.getElementById('menuCategories');
-    catContainer.innerHTML = `<button class="cat-btn active" onclick="filterMenu('Sve')">Sve</button>`;
-    categories.forEach(cat => {
-        catContainer.innerHTML += `<button class="cat-btn" onclick="filterMenu('${cat}')">${cat}</button>`;
+    if (slides.length) { slides[0].classList.add('active'); currentSlide=0;
+        if (slideInterval) clearInterval(slideInterval);
+        slideInterval = setInterval(()=>{
+            slides[currentSlide].classList.remove('active');
+            currentSlide = (currentSlide+1)%slides.length;
+            slides[currentSlide].classList.add('active');
+        }, (settings.slide_speed||4)*1000);
+    }
+    const sb = document.getElementById('sideButtons');
+    sb.innerHTML = '';
+    settings.buttons.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(b => {
+        let btn = document.createElement('button'); btn.className='side-btn';
+        btn.textContent = `${b.icon||''} ${b.label||''}`;
+        btn.onclick = () => {
+            if (b.id === '1') window.open(b.link, '_blank'); // Instagram u novom tabu
+            else window.open(b.link, '_blank'); // sve kockice u novom tabu
+        };
+        sb.appendChild(btn);
     });
-    filterMenu('Sve');
-    document.getElementById('menuModal').classList.add('active');
 }
 
-function closeMenu() {
-    document.getElementById('menuModal').classList.remove('active');
+function openLink(url) {
+    if (!url || url==='meni') url = settings.menu_link;
+    if (!url) return;
+    // Koristimo allOrigins proxy – radi za glavnu stranu
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    document.getElementById('fullIframe').src = proxyUrl;
+    document.getElementById('fullFrame').classList.add('active');
+}
+function closeFrame() {
+    document.getElementById('fullFrame').classList.remove('active');
+    document.getElementById('fullIframe').src = 'about:blank';
 }
 
-function filterMenu(category) {
-    document.querySelectorAll('.cat-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    const filtered = category === 'Sve' ? menuItems : menuItems.filter(item => item.category === category);
-    const container = document.getElementById('menuItems');
-    container.innerHTML = filtered.map(item => `
-        <div class="menu-item">
-            <img src="${item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400'}" alt="${item.name}">
-            <div class="menu-item-info">
-                <h3>${item.name}</h3>
-                <p>${item.description || ''}</p>
-                <div class="price">${item.price}</div>
-            </div>
-        </div>
-    `).join('');
-}
-
-// ==================== ADMIN PANEL ====================
-function renderAdminPanel() {
-    const slidesList = document.getElementById('slidesList');
-    if (slidesList) {
-        slidesList.innerHTML = '';
-        (settings.slideshow_images || []).forEach((url, i) => {
-            const div = document.createElement('div');
-            div.className = 'slide-item';
-            div.innerHTML = `<img src="${url}" onerror="this.src='data:image/svg+xml,...'"><span style="flex:1;font-size:12px;">${url.substring(0,50)}...</span><button class="admin-btn admin-btn-delete" onclick="removeSlide(${i})">✕</button>`;
-            slidesList.appendChild(div);
-        });
-    }
-    document.getElementById('slideSpeed').value = settings.slide_speed || 4;
-    document.getElementById('pinCode').value = settings.pin_code || '0987';
-
-    const buttonsList = document.getElementById('buttonsList');
-    if (buttonsList) {
-        buttonsList.innerHTML = '';
-        (settings.buttons || []).forEach((btn, i) => {
-            const row = document.createElement('div');
-            row.className = 'btn-row';
-            row.innerHTML = `
-                <input type="text" class="btn-icon" value="${btn.icon||''}" placeholder="Ikona" style="width:60px;">
-                <input type="text" class="btn-label" value="${btn.label||''}" placeholder="Naziv" style="flex:2;">
-                <input type="text" class="btn-link" value="${btn.link||''}" placeholder="URL" style="flex:3;">
-                <button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>
-            `;
-            const updateBtn = () => {
-                settings.buttons[i] = {
-                    ...settings.buttons[i],
-                    icon: row.querySelector('.btn-icon').value,
-                    label: row.querySelector('.btn-label').value,
-                    link: row.querySelector('.btn-link').value
-                };
-            };
-            row.querySelector('.btn-icon').addEventListener('input', updateBtn);
-            row.querySelector('.btn-label').addEventListener('input', updateBtn);
-            row.querySelector('.btn-link').addEventListener('input', updateBtn);
-            buttonsList.appendChild(row);
-        });
-    }
-
-    // Meni stavke
-    const menuAdmin = document.getElementById('menuItemsAdmin');
-    if (menuAdmin) {
-        menuAdmin.innerHTML = '';
-        menuItems.forEach((item, i) => {
-            const row = document.createElement('div');
-            row.className = 'menu-item-admin';
-            row.innerHTML = `
-                <input type="text" value="${item.name}" placeholder="Naziv" style="flex:2;">
-                <input type="text" value="${item.price}" placeholder="Cena" style="flex:1;">
-                <input type="text" value="${item.category}" placeholder="Kat." style="flex:1;">
-                <button class="admin-btn admin-btn-delete" onclick="deleteMenuItem(${item.id})">✕</button>
-            `;
-            const inputs = row.querySelectorAll('input');
-            inputs[0].addEventListener('input', async () => {
-                await db.from('menu_items').update({ name: inputs[0].value }).eq('id', item.id);
-            });
-            inputs[1].addEventListener('input', async () => {
-                await db.from('menu_items').update({ price: inputs[1].value }).eq('id', item.id);
-            });
-            inputs[2].addEventListener('input', async () => {
-                await db.from('menu_items').update({ category: inputs[2].value }).eq('id', item.id);
-            });
-            menuAdmin.appendChild(row);
-        });
-    }
-}
-
-function addSlide() { const u = document.getElementById('newSlideUrl').value.trim(); if(u) { settings.slideshow_images.push(u); document.getElementById('newSlideUrl').value=''; applySettings(); } }
-function removeSlide(i) { settings.slideshow_images.splice(i,1); applySettings(); }
-function addButton() { settings.buttons.push({id:Date.now().toString(36), icon:'📎', label:'Nova', link:'https://', type:'link', order:settings.buttons.length+1}); applySettings(); }
-function removeButton(i) { settings.buttons.splice(i,1); applySettings(); }
-
-async function addMenuItem() {
-    const name = document.getElementById('newItemName').value.trim();
-    const price = document.getElementById('newItemPrice').value.trim();
-    if (!name || !price) return alert('Unesite naziv i cenu!');
-    
-    await db.from('menu_items').insert({
-        name,
-        price,
-        description: document.getElementById('newItemDesc').value.trim(),
-        category: document.getElementById('newItemCat').value.trim() || 'Ostalo',
-        image_url: document.getElementById('newItemImg').value.trim(),
-        sort_order: menuItems.length
+function renderAdmin() {
+    document.getElementById('slidesList').innerHTML = '';
+    settings.slideshow_images.forEach((u,i) => {
+        let d = document.createElement('div'); d.className='slide-item';
+        d.innerHTML = `<img src="${u}" onerror="this.src='data:image/svg+xml,...'"><span style="flex:1;font-size:12px;">${u.substring(0,50)}...</span><button class="admin-btn admin-btn-delete" onclick="removeSlide(${i})">✕</button>`;
+        document.getElementById('slidesList').appendChild(d);
     });
-    
-    document.getElementById('newItemName').value = '';
-    document.getElementById('newItemPrice').value = '';
-    document.getElementById('newItemDesc').value = '';
-    document.getElementById('newItemCat').value = '';
-    document.getElementById('newItemImg').value = '';
-    
-    await loadMenuItems();
-    renderAdminPanel();
-}
-
-async function deleteMenuItem(id) {
-    if (confirm('Obrisati ovo jelo?')) {
-        await db.from('menu_items').delete().eq('id', id);
-        await loadMenuItems();
-        renderAdminPanel();
-    }
-}
-
-async function saveSettings() {
-    settings.slide_speed = parseInt(document.getElementById('slideSpeed').value) || 4;
-    settings.pin_code = document.getElementById('pinCode').value.trim() || '0987';
-    await saveSettingsToCloud();
-    applySettings();
-    alert('✅ Sačuvano!');
-}
-
-function showPinDialog() { document.getElementById('pinDialog').classList.add('active'); document.getElementById('pinInput').value=''; setTimeout(()=>document.getElementById('pinInput').focus(),300); }
-function hidePinDialog() { document.getElementById('pinDialog').classList.remove('active'); }
-function checkPin() { if(document.getElementById('pinInput').value===settings.pin_code){hidePinDialog();toggleAdmin();} else alert('Pogrešan PIN!'); }
-function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdminPanel(); }
-
-async function init() {
-    await loadSettings();
-    await loadMenuItems();
-    applySettings();
-    renderAdminPanel();
-
-    document.getElementById('logo').addEventListener('click', () => {
-        logoClicks++;
-        if (logoClicks >= 5) { logoClicks=0; showPinDialog(); }
-        setTimeout(()=>{logoClicks=0;},2000);
+    document.getElementById('slideSpeed').value = settings.slide_speed||4;
+    document.getElementById('pinCode').value = settings.pin_code||'0987';
+    let bl = document.getElementById('buttonsList');
+    bl.innerHTML = '';
+    settings.buttons.forEach((b,i) => {
+        let r = document.createElement('div'); r.className='btn-row';
+        r.innerHTML = `<input type="text" value="${b.icon||''}" placeholder="Ikona" style="width:60px;"><input type="text" value="${b.label||''}" placeholder="Naziv" style="flex:2;"><input type="text" value="${b.link||''}" placeholder="URL" style="flex:3;"><button class="admin-btn admin-btn-delete" onclick="removeButton(${i})">✕</button>`;
+        const update = () => { settings.buttons[i] = {...settings.buttons[i], icon: r.querySelector('input:nth-child(1)').value, label: r.querySelector('input:nth-child(2)').value, link: r.querySelector('input:nth-child(3)').value}; };
+        r.querySelectorAll('input').forEach(inp => inp.addEventListener('input', update));
+        bl.appendChild(r);
     });
-
-    setInterval(()=>{
-        document.getElementById('clock').textContent = new Date().toLocaleTimeString('sr',{hour:'2-digit',minute:'2-digit'});
-    },1000);
-
-    async function fetchWeather() {
-        try {
-            const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=42.29&longitude=18.84&current_weather=true&timezone=Europe/Belgrade');
-            const data = await res.json();
-            if (data.current_weather) document.getElementById('weather').innerHTML = `🌤 ${Math.round(data.current_weather.temperature)}°C`;
-        } catch(e) { document.getElementById('weather').innerHTML = `🌤 --°C`; }
-    }
-    fetchWeather();
-    setInterval(fetchWeather, 600000);
-
-    document.addEventListener('contextmenu', e=>e.preventDefault());
-    document.addEventListener('keydown', e=>{ if(['Escape','F11','Backspace','Alt','Meta'].includes(e.key)) e.preventDefault(); });
-    document.addEventListener('touchmove', e=>{ if(!e.target.closest('input,.admin-panel,.menu-modal')) e.preventDefault(); },{passive:false});
-
-    document.body.addEventListener('click', function requestFullscreenOnce() {
-        document.documentElement.requestFullscreen?.().catch(()=>{});
-        document.body.removeEventListener('click', requestFullscreenOnce);
-    }, { once: true });
 }
+function addSlide() { let u = document.getElementById('newSlideUrl').value.trim(); if(u) { settings.slideshow_images.push(u); document.getElementById('newSlideUrl').value=''; apply(); save(); renderAdmin(); } }
+function removeSlide(i) { settings.slideshow_images.splice(i,1); apply(); save(); renderAdmin(); }
+function addButton() { settings.buttons.push({id:Date.now().toString(36), icon:'📎', label:'Nova', link:'https://', type:'link', order:settings.buttons.length+1}); apply(); save(); renderAdmin(); }
+function removeButton(i) { settings.buttons.splice(i,1); apply(); save(); renderAdmin(); }
+function saveAdmin() { settings.slide_speed = parseInt(document.getElementById('slideSpeed').value)||4; settings.pin_code = document.getElementById('pinCode').value.trim()||'0987'; save(); apply(); alert('✅ Sačuvano!'); }
 
-window.addEventListener('load', init);
+function showPin() { document.getElementById('pinDialog').classList.add('active'); document.getElementById('pinInput').value=''; setTimeout(()=>document.getElementById('pinInput').focus(),300); }
+function hidePin() { document.getElementById('pinDialog').classList.remove('active'); }
+function checkPin() {
+    if (document.getElementById('pinInput').value === settings.pin_code) { hidePin(); window.close(); }
+    else { alert('Pogrešan PIN!'); document.getElementById('pinInput').value=''; }
+}
+function toggleAdmin() { document.getElementById('adminPanel').classList.toggle('active'); renderAdmin(); }
+
+window.addEventListener('load', () => {
+    apply(); renderAdmin();
+    document.getElementById('logo').addEventListener('click', () => { logoClicks++; if (logoClicks>=5) { logoClicks=0; showPin(); } setTimeout(()=>{logoClicks=0;},2000); });
+    setInterval(()=>{ document.getElementById('clock').textContent = new Date().toLocaleTimeString('sr',{hour:'2-digit',minute:'2-digit'}); },1000);
+    const weather = () => fetch('https://api.open-meteo.com/v1/forecast?latitude=42.29&longitude=18.84&current_weather=true&timezone=Europe/Belgrade').then(r=>r.json()).then(d=>{ if(d.current_weather) document.getElementById('weather').innerHTML=`🌤 ${Math.round(d.current_weather.temperature)}°C`; }).catch(()=>{});
+    weather(); setInterval(weather, 600000);
+});
 </script>
 </body>
 </html>
