@@ -180,10 +180,10 @@ function apply() {
 }
 
 function openLink(url) {
-    if (!url || url==='meni') url = settings.menu_link;
+    if (!url || url === 'meni') url = settings.menu_link;
     if (!url) return;
-    // Koristimo allOrigins proxy – radi za glavnu stranu
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    // Use CodeTabs free proxy instead of allOrigins
+    const proxyUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url);
     document.getElementById('fullIframe').src = proxyUrl;
     document.getElementById('fullFrame').classList.add('active');
 }
